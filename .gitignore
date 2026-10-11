@@ -6,6 +6,7 @@ npm-debug.log*
 # Локальные настройки (в репозиторий не попадают)
 .env
 *.local.env
+.bot-ready
 
 # IDE
 .vscode
