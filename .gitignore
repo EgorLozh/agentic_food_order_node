@@ -1,0 +1,13 @@
+# Node
+node_modules
+npm-debug.log*
+*.log
+
+# Локальные настройки (в репозиторий не попадают)
+.env
+*.local.env
+
+# IDE
+.vscode
+.idea
+.DS_Store
