@@ -58,12 +58,12 @@ src/orders/pickupOrder.js
 |---|---|---|
 | `settings.py` | `src/config.js` ✅ | сделано |
 | `adapters/postgres_orders.py` | `src/orders/pickupOrder.js` ✅ (теперь через код каркаса) | сделано |
+| `adapters/sheets/*` (меню из Google Sheets) | не нужен: меню берём из `pricelist` функциями каркаса ✅ (`src/menu/feedmerMenu.js`); синк листа в `pricelist` делает сам FeedMer | сделано |
+| `adapters/postgres_cafes.py` (точки самовывоза) | `db.getAllCafesInfo` / `db.getCafeInfo` ✅ | сделано |
 | `llm/client.py` (OpenAI/DeepSeek/Ollama) | `src/llm/client.js` (fetch, без SDK) | S |
 | `llm/order_agent.py` (tool-loop, промпт) | `src/llm/orderAgent.js` | M |
 | `tools/order_agent_tools.py` (11 tools) | `src/tools/orderTools.js` + `src/state/orderState.js` | M |
-| `tools/menu.py` (матчинг меню, алиасы) | `src/tools/menu.js` | M |
-| `adapters/sheets/*` (меню из Google Sheets по `ssBackId`) | `src/menu/sheets.js` (`googleapis` как в каркасе) | M |
-| `adapters/postgres_cafes.py` (точки самовывоза) | взять у каркаса: `db.getCafeInfo` / список кафе | S |
+| `tools/menu.py` (матчинг меню, алиасы) | `src/tools/menu.js` (поверх `feedmerMenu`) | M |
 | `orchestration/orchestrator.py` (таймаут хода) | `src/bot/orchestrator.js` | S |
 | `storage/sessions.py` (история диалога) | `src/state/sessions.js` (память или SQLite) | S |
 | `bot/*` (aiogram 3) | telegraf/grammy | M |
@@ -71,6 +71,17 @@ src/orders/pickupOrder.js
 | `tests/*` (64 теста) | `node:test` + `supertest`-подобные проверки | M |
 
 S/M — грубая оценка (небольшое/среднее).
+
+### 4.1 Что подтвердилось на тестовой БД (меню)
+
+* `db.getPricelist(cafeId)` — 778 позиций у кафе 3 (демо), **0 у кафе 68 и 72**: синк прайса из
+  Google-таблицы (`google_sheets_module/speadsheet.js` → `db.updatePricelist`) в тестовой БД не
+  выполнялся. Скрипт `check:feedmer` это показывает как ❌.
+* У демо-кафе в прайсе есть мусорные строки (2 из 778 — с пустым названием), наша обёртка это
+  переживает, но для бота такие позиции надо отфильтровывать.
+* `db.getActualPricelist(cafeId, superBotId)` (меню «как в графе бота») на кафе 3 вернул 0 позиций
+  при `superBotId = -1` — для агентного бота базовым источником выбран `getPricelist` минус
+  `stopped`; `getActualPricelist` оставлен опцией, если нужно ровно то же меню, что у каркасного бота.
 
 ## 5. Варианты зависимости от кода FeedMer
 
@@ -91,9 +102,17 @@ S/M — грубая оценка (небольшое/среднее).
 целиком не импортируется: он тянет сокеты, мессенджеры, печать, оплату. Варианты убрать и это:
 попросить в каркасе функцию `createPickupOrder(...)`, либо вынести правило в PL/pgSQL-функцию.
 
-## 7. Открытые вопросы
+## 7. Вариант зависимости (решено)
 
-1. Куда кладём репозиторий (имя/организация) и нужен ли он в GitHub FeedMer-организации или у тебя?
-2. Вариант зависимости A/B/C/D из п. 5 — и согласуем ли git-зависимость на приватный FeedMer с Кириллом?
-3. Портировать бота и агента сразу целиком или поэтапно (сначала «заказ + бот», потом меню/бенч)?
-4. Python-версию оставляем как эталон для паритета до полного портирования? (рекомендую да)
+Репозиторий: https://github.com/EgorLozh/agentic_food_order_node (remote `origin`, ветка `main`).
+Код каркаса используется как библиотека из чекаута FeedMer (`FEEDMER_LIB_DIR`), заказчик это
+подтвердил («можешь использовать DBlib»). В деплое фиксируем **коммит FeedMer** — его печатает
+`npm run check:feedmer`. Открытым остаётся вопрос публикации пакета `@feedmer/db` (вариант C),
+чтобы не держать рядом чекаут каркаса.
+
+## 8. Открытые вопросы
+
+1. Портировать бота и агента сразу целиком или поэтапно (сначала «бот + заказ», потом меню/бенч)?
+2. Прайс для кафе 68/72 в тестовой БД пуст — кто гоняет синк меню из таблицы (каркас) или заливаем
+   сиды для тестов?
+3. Python-версию оставляем как эталон для паритета до полного портирования? (рекомендую да)

@@ -9,11 +9,13 @@
 | Часть | Состояние |
 |---|---|
 | Ядро записи заказа кодом каркаса (`src/feedmer.js`, `src/orders/pickupOrder.js`) | ✅ работает, проверено сквозным тестом |
+| Меню и кафе функциями каркаса (`src/menu/feedmerMenu.js`) | ✅ работает (`db.getPricelist`/`getActualPricelist`/`getItemByNameFromDB`/`getAllCafesInfo`) |
+| Проверка окружения (`scripts/check-feedmer.js`) | ✅ 18/19 (расхождение — пустой прайс у кафе 68/72 в тестовой БД) |
 | Скрипт выравнивания схемы БД (`scripts/fix-shared-db-schema.sql`) | ✅ применён к тестовой БД |
 | Конфиг (`src/config.js`) | ✅ |
 | Telegram-бот (aiogram → telegraf/grammy) | ⏳ не портирован |
 | LLM-агент и tools (`order_agent`, `order_agent_tools`) | ⏳ не портирован |
-| Меню из Google Sheets, бенч, тесты | ⏳ не портированы |
+| Бенч, тесты бота | ⏳ не портированы |
 
 План и риски: [docs/MIGRATION.md](docs/MIGRATION.md).
 
@@ -22,7 +24,10 @@
 ```bash
 npm install
 cp .env.example .env      # DB_URL / DB_LOGS_URL как у FeedMer, FEEDMER_LIB_DIR — путь до чекаута FeedMer
+npm run check:feedmer     # окружение: код каркаса, коммит, зависимости, схема БД
 npm run smoke:order       # создаёт заказ кодом каркаса, читает обратно, удаляет за собой
+npm run smoke:menu        # кафе и меню функциями каркаса
+npm test                  # правила даты/таймзоны и меток оплаты
 ```
 
 Если `smoke:order` падает на `chatids`/`pk_orders` — сначала выравнивание схемы:
@@ -46,6 +51,11 @@ src/feedmer.js
 только мелкие правила, живущие в `scenarios.js` (не импортируется целиком): дата заказа в таймзоне
 кафе, маппинг оплаты в `payway_type`, `deliverysum=0` / `ASAP=false` / `deliveryTimeFinish=null`
 для самовывоза.
+
+Меню и кафе (`src/menu/feedmerMenu.js`) — тоже функции каркаса, своих SQL к `pricelist`/`cafes` нет:
+`getAllCafesInfo`, `getCafeInfo` (в том числе таймзона для даты заказа), `getPricelist`,
+`getActualPricelist` (только позиции из графа бота), `getItemByNameFromDB`, `getPricelistAsString`
+(строка названий для промпта LLM).
 
 ## Проверки
 
