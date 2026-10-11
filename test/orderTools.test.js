@@ -123,6 +123,33 @@ test('точка/время/оплата: валидация и неоднозн
   assert.equal(toolbox.state.phone, '+79001234567');
 });
 
+test('смена точки перепроверяет состав по меню нового кафе', async () => {
+  const menus = {
+    68: [{ name: 'Куриная Стандарт 320г', price: 340, stopped: false }],
+    72: [{ name: 'Куриная Стандарт 320г', price: 250, stopped: false }, { name: 'Сыр', price: 50, stopped: false }],
+  };
+  const { toolbox } = makeToolbox({
+    deps: {
+      getMenuItems: async (cafeId) => menus[cafeId] || [],
+      listCafes: async () => CAFES,
+    },
+  });
+
+  await toolbox.dispatch('set_pickup_point', { query: 'Петрова' }); // кафе 72
+  await toolbox.dispatch('set_items', { items: [{ name: 'Сыр', qty: 2 }] });
+  assert.equal(toolbox.state.items.length, 1);
+
+  // переезд в кафе 68: «Сыр» там есть, «Куриная» — тоже; проверим позицию, которой нет
+  await toolbox.dispatch('set_items', { items: [{ name: 'Куриная Стандарт 320г', qty: 1 }] });
+  const moved = await toolbox.dispatch('set_pickup_point', { query: 'Молодежная' }); // кафе 68
+  assert.equal(moved.ok, true);
+  assert.deepEqual(moved.dropped_items, ['Сыр']);
+  assert.equal(toolbox.state.items.length, 1);
+  assert.equal(toolbox.state.items[0].name, 'Куриная Стандарт 320г');
+  assert.equal(toolbox.state.items[0].unitPrice, 340); // цена взята из меню нового кафе
+  assert.match(moved.note, /недоступны/);
+});
+
 test('get_menu отдаёт только доступные позиции и кафе по выбранной точке', async () => {
   const { toolbox } = makeToolbox();
   const menu = await toolbox.dispatch('get_menu');

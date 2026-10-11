@@ -52,6 +52,13 @@ const config = {
     sourceTag: process.env.ORDER_SOURCE_TAG || 'agentic',
     defaultCafeId: process.env.ORDERS_DEFAULT_CAFE_ID ? Number(process.env.ORDERS_DEFAULT_CAFE_ID) : null,
   },
+
+  google: {
+    // Тот же service account, что у каркаса: из него синкается прайс кафе (лист «Общий справочник»)
+    serviceAccountJson: process.env.GOOGLE_SERVICE_ACCOUNT_JSON || null,
+    spreadsheetId: process.env.SPREADSHEET_ID || null,
+    pricelistSheetTitle: process.env.PRICELIST_SHEET_TITLE || 'Общий справочник',
+  },
 };
 
 function assertDbConfig() {

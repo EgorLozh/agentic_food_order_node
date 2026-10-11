@@ -66,7 +66,12 @@ $do$;
 --    глушит ошибку в try/catch и связка telegram id → userid не создаётся.
 ALTER TABLE public.chatids ADD COLUMN IF NOT EXISTS "max_chatid" BIGINT;
 
--- 5. Остальные расхождения тестовой БД с миграциями FeedMer (НЕ автоматизируем —
+-- 5. pricelist.status — нужен db.updatePricelist (DBlib.js:437): каркас вставляет позиции
+--    9 колонками, включая status. Миграции FeedMer эту колонку не создают, в тестовой БД её нет,
+--    поэтому синк прайса из Google-таблицы через штатный писатель молча падал.
+ALTER TABLE public.pricelist ADD COLUMN IF NOT EXISTS status TEXT;
+
+-- 6. Остальные расхождения тестовой БД с миграциями FeedMer (НЕ автоматизируем —
 --    это решения владельца схемы): таблицы chains нет (миграции:1287),
 --    cafes.chain_id нет (1292), superbots."maxBotToken" и cafes."maxBotToken"
 --    отсутствуют (1283-1284), sentmessages."message_id" остался старым типом (1285).

@@ -424,9 +424,33 @@ class OrderToolbox {
     this.state.pickupPointName = point.name;
     this.state.pickupPointAddress = point.address;
     this.markCollecting();
+
+    // Кафе изменилось → состав мог быть набран из меню другого кафе.
+    // Перепроверяем позиции по меню выбранного кафе, чтобы в заказ не попали чужие блюда
+    // (иначе в общей БД заказ кафе 68 может содержать позицию, которой у 68 нет).
+    let droppedItems = [];
+    try {
+      const menu = await this.deps.getMenuItems(Number(point.pointId));
+      const matcher = new MenuMatcher(menu);
+      const kept = [];
+      for (const item of this.state.items) {
+        const { item: resolved } = matcher.resolveItem(item.name, item.qty);
+        if (resolved) kept.push({ ...item, skuId: resolved.skuId, unitPrice: resolved.unitPrice });
+        else droppedItems.push(item.name);
+      }
+      this.state.items = kept;
+    } catch (e) {
+      console.warn('[order tool] не удалось перепроверить состав по меню кафе:', e.message);
+    }
+
     return {
       ok: true,
       pickup_point: { name: point.name, address: point.address },
+      dropped_items: droppedItems,
+      note: droppedItems.length
+        ? `Позиции недоступны в кафе «${point.name}»: ${droppedItems.join(', ')}. ` +
+          'Сообщи клиенту и предложи заменить их по меню этого кафе.'
+        : undefined,
     };
   }
 
