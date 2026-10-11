@@ -14,25 +14,9 @@
  *   • deliverysum = 0 / deliveryTimeFinish = null / ASAP = false для самовывоза.
  */
 
-const moment = require('moment-timezone'); // та же библиотека, что в каркасе
 const { db } = require('../feedmer');
 const { config } = require('../config');
-
-const PAYWAY_BY_PAYMENT = {
-  cash: 'наличными',
-  card: 'картой при получении',
-};
-
-/** scenarios.js:5941-5953 — дата заказа в таймзоне кафе, прошедшее время → завтра. */
-function orderDate(pickupTime, timezone) {
-  const now = timezone ? moment().tz(timezone) : moment();
-  const stamp = `${now.format('YYYY-MM-DD')} ${pickupTime}`;
-  let planned = timezone
-    ? moment.tz(stamp, 'YYYY-MM-DD HH:mm', timezone)
-    : moment(stamp, 'YYYY-MM-DD HH:mm');
-  if (planned.isBefore(now)) planned = planned.add(1, 'day');
-  return planned.format('DD.MM.YYYY');
-}
+const { orderDate, PAYWAY_BY_PAYMENT, PICKUP_TIME_PATTERN } = require('./rules');
 
 async function resolveUserId(telegramUserId) {
   const existing = await db.getUserIdByTelegramChatId(telegramUserId);
@@ -69,7 +53,7 @@ async function createPickupOrder(order) {
   if (!Number.isInteger(cafeId)) {
     throw new Error('Не задан cafeId (ORDERS_DEFAULT_CAFE_ID или pickup_point_id)');
   }
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(order.pickupTime || '')) {
+  if (!PICKUP_TIME_PATTERN.test(order.pickupTime || '')) {
     throw new Error(`Время должно быть HH:MM, получено: ${order.pickupTime}`);
   }
   const payway = PAYWAY_BY_PAYMENT[order.payment];

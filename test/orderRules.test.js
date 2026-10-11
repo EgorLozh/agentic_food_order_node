@@ -5,7 +5,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { orderDate, PAYWAY_BY_PAYMENT } = require('../src/orders/pickupOrder');
+const { orderDate, PAYWAY_BY_PAYMENT } = require('../src/orders/rules');
 const moment = require('moment-timezone');
 
 test('orderDate: в таймзоне кафе', () => {
