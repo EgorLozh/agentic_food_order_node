@@ -49,6 +49,7 @@ test('описания инструментов совпадают по имен
   const names = ORDER_TOOL_DEFINITIONS.map((tool) => tool.function.name);
   assert.deepEqual(names, [
     'get_order_draft',
+    'respond_to_customer',
     'get_menu',
     'set_items',
     'list_pickup_points',

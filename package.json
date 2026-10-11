@@ -9,6 +9,7 @@
     "smoke:order": "node scripts/smoke-order.js",
     "smoke:menu": "node scripts/smoke-menu.js",
     "smoke:tools": "node scripts/smoke-tools.js",
+    "smoke:agent": "node scripts/smoke-agent.js",
     "check:feedmer": "node scripts/check-feedmer.js"
   },
   "engines": {

@@ -21,6 +21,48 @@ function feedmerMenuSource() {
 
 const PICKUP_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+const MIN_CHOICES = 2;
+const MAX_CHOICES = 8;
+const MAX_CHOICE_LABEL_LEN = 40;
+
+/** Порт _validate_choices: список подписей кнопок или текст ошибки. */
+function validateChoices(raw) {
+  if (!Array.isArray(raw)) {
+    return `choices must be a list of ${MIN_CHOICES} to ${MAX_CHOICES} strings`;
+  }
+  const labels = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') return 'Each choice must be a string';
+    const label = item.trim();
+    if (!label) return 'Choice labels must be non-empty';
+    if (label.length > MAX_CHOICE_LABEL_LEN) {
+      return `Choice label must be at most ${MAX_CHOICE_LABEL_LEN} characters`;
+    }
+    labels.push(label);
+  }
+  if (labels.length < MIN_CHOICES || labels.length > MAX_CHOICES) {
+    return `choices must contain ${MIN_CHOICES} to ${MAX_CHOICES} items`;
+  }
+  if (new Set(labels).size !== labels.length) return 'Choice labels must be unique';
+  return labels;
+}
+
+/** Порт validate_customer_response: { text, choices, error }. */
+function validateCustomerResponse(arguments_) {
+  const text = arguments_?.text;
+  if (typeof text !== 'string' || !text.trim()) {
+    return { error: 'text must be a non-empty string' };
+  }
+  const replyText = text.trim();
+  const rawChoices = arguments_.choices;
+  if (Array.isArray(rawChoices) && rawChoices.length === 0) {
+    return { text: replyText, choices: [] };
+  }
+  const choices = validateChoices(rawChoices);
+  if (typeof choices === 'string') return { error: choices };
+  return { text: replyText, choices };
+}
+
 /** Порт normalize_ru_phone. */
 function normalizeRuPhone(raw) {
   const digits = String(raw ?? '').replace(/\D/g, '');
@@ -39,6 +81,33 @@ const ORDER_TOOL_DEFINITIONS = [
       description:
         'Черновик уже есть в current_draft. Вызывай только чтобы сверить состояние после tool calls в этом ходе.',
       parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'respond_to_customer',
+      description:
+        'Завершить текущий ход и отправить клиенту ответ. Вызывай после всех нужных tools вместо ' +
+        'обычного текста. choices=[] допустим только для времени HH:MM, телефона и сообщения после ' +
+        'успешного submit_order. Во всех остальных ответах передай 2–8 коротких уникальных подписей. ' +
+        'Сразу после set_items, если точка ещё не выбрана, choices ровно «Добавить ещё» и ' +
+        '«К точке самовывоза». Иначе: категории из реальных позиций, реальные позиции, точки, ' +
+        '«наличные»/«карта» или «да»/«нет». Не передавай одну кнопку и не пиши служебные маркеры ' +
+        'кнопок в text.',
+      parameters: {
+        type: 'object',
+        properties: {
+          text: { type: 'string', minLength: 1 },
+          choices: {
+            type: 'array',
+            maxItems: 8,
+            items: { type: 'string', minLength: 1, maxLength: 40 },
+          },
+        },
+        required: ['text', 'choices'],
+        additionalProperties: false,
+      },
     },
   },
   {
@@ -217,6 +286,17 @@ class OrderToolbox {
 
   markCollecting() {
     if (this.state.status !== STATUSES.CREATED) this.state.status = STATUSES.COLLECTING;
+  }
+
+  /** Порт reply_on_tool_limit: что сказать клиенту, если раунды tools кончились. */
+  replyOnToolLimit() {
+    const missing = this.missingFields();
+    const fallback =
+      'Не удалось завершить обработку запроса за один шаг. Пожалуйста, уточните заказ или попробуйте ещё раз.';
+    if (!this.state.hasDraftProgress() || !missing.length) return fallback;
+    const labels = missing.map((field) => FIELD_LABELS[field]).filter(Boolean);
+    if (!labels.length) return fallback;
+    return `Уточните, пожалуйста: ${labels.join(', ')}.`;
   }
 
   async dispatch(name, args = {}) {
@@ -449,4 +529,9 @@ module.exports = {
   normalizeRuPhone,
   PICKUP_TIME_PATTERN,
   FIELD_LABELS,
+  validateCustomerResponse,
+  validateChoices,
+  MIN_CHOICES,
+  MAX_CHOICES,
+  MAX_CHOICE_LABEL_LEN,
 };

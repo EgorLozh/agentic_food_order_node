@@ -19,6 +19,21 @@ const config = {
     deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
     openaiApiKey: process.env.OPENAI_API_KEY || null,
     openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    openaiBaseUrl: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+    ollamaApiKey: process.env.OLLAMA_API_KEY || 'ollama',
+    ollamaModel: process.env.OLLAMA_MODEL || 'gemma4:26b',
+    ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1',
+    timeoutSeconds: Number(process.env.LLM_TIMEOUT_SECONDS || 120),
+    maxTokens: process.env.LLM_MAX_TOKENS ? Number(process.env.LLM_MAX_TOKENS) : null,
+  },
+
+  agent: {
+    turnTimeoutSeconds: Number(process.env.AGENT_TURN_TIMEOUT_SECONDS || 90),
+    historyLimit: Number(process.env.DIALOG_HISTORY_LIMIT || 6),
+  },
+
+  bot: {
+    notifyAdmin: process.env.ORDER_NOTIFY_ADMIN === '1',
   },
 
   // Тот же код каркаса пишет заказ, поэтому и переменные те же.

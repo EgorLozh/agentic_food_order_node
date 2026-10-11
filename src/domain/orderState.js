@@ -61,6 +61,22 @@ class OrderState {
     return this.items.reduce((sum, item) => sum + item.unitPrice * item.qty, 0);
   }
 
+  clone() {
+    return new OrderState({
+      items: this.items.map((item) => ({ ...item })),
+      pickupPointId: this.pickupPointId,
+      pickupPointName: this.pickupPointName,
+      pickupPointAddress: this.pickupPointAddress,
+      pickupTime: this.pickupTime,
+      paymentMethod: this.paymentMethod,
+      phone: this.phone,
+      status: this.status,
+      lastOrderId: this.lastOrderId,
+      pendingClarifications: this.pendingClarifications.map((c) => ({ ...c })),
+      idempotencyKey: this.idempotencyKey,
+    });
+  }
+
   toDraft() {
     return {
       items: this.items.map((item) => ({ ...item })),
