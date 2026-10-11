@@ -30,11 +30,10 @@ async function main() {
   const bot = createBot({ token: config.botToken, service });
 
   if (config.bot.notifyAdmin && config.adminTelegramId) {
-    service.notifier = async ({ orderId, total }) => {
-      await bot.telegram.sendMessage(
-        config.adminTelegramId,
-        service.adminOrderText(orderId, total)
-      );
+    service.notifier = async ({ text, orderId, total }) => {
+      // text формирует BotService (формат каркасного бота); fallback — на случай внешнего вызова
+      const message = text || service.adminOrderText({ orderId, total });
+      await bot.telegram.sendMessage(config.adminTelegramId, message);
     };
   } else if (config.bot.notifyAdmin) {
     console.warn('ORDER_NOTIFY_ADMIN=1, но ADMIN_TELEGRAM_ID не задан — уведомления выключены');

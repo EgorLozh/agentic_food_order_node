@@ -84,8 +84,33 @@ test('уведомление админа уходит только когда �
   });
   const result = await service.handleText({ telegramUserId: 7, text: 'да' });
   assert.equal(result.orderId, '284950');
-  assert.deepEqual(sent, [{ orderId: '284950', total: 240 }]);
-  assert.equal(service.adminOrderText('284950', 240), 'Новый заказ №284950 на 240 ₽ принят через агентного бота.');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].orderId, '284950');
+  assert.equal(sent[0].total, 240);
+});
+
+test('уведомление админа — в формате каркасного бота (ORD-, точка, оплата)', () => {
+  const { service } = makeService();
+  const state = new OrderState({
+    items: [{ name: 'Куриная Стандарт 320г', qty: 2, unitPrice: 340, skuId: 1 }],
+    pickupPointId: 68,
+    pickupPointName: 'Raketa на Молодежной 107б',
+    pickupPointAddress: 'ул. Гагарина, 5',
+    pickupTime: '14:00',
+    paymentMethod: 'card',
+    phone: '+79001234567',
+  });
+
+  const text = service.adminOrderText({ orderId: '284950', telegramUserId: 8862284665, state, total: 680 });
+
+  assert.match(text, /^Новый заказ ORD-284950\n/);
+  assert.match(text, /Клиент Telegram ID: 8862284665/);
+  assert.match(text, /• 2× Куриная Стандарт 320г — 340 ₽/);
+  assert.match(text, /Самовывоз: Raketa на Молодежной 107б \(ул\. Гагарина, 5\)/);
+  assert.match(text, /Время: 14:00/);
+  assert.match(text, /Оплата: картой/);
+  assert.match(text, /Телефон: \+79001234567/);
+  assert.match(text, /Итого: 680 ₽/);
 });
 
 test('ошибка уведомления не ломает ответ клиенту', async () => {

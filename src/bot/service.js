@@ -16,8 +16,37 @@ const START_CHOICE = 'Начать заказ';
 const CANCEL_TEXT = 'Заказ отменён. Можете начать новый.';
 const BUSY_TEXT = 'Подождите, обрабатываю предыдущее сообщение...';
 
-const adminOrderText = (orderId, total) =>
-  `Новый заказ №${orderId}${total ? ` на ${total} ₽` : ''} принят через агентного бота.`;
+const PAYMENT_LABELS = { cash: 'наличными', card: 'картой' };
+
+/**
+ * Текст уведомления админу — формат каркасного бота (эталон: adapters/telegram_orders.py
+ * format_admin_order_message). Номер заказа — это pk_orders из общей БД, с префиксом ORD-,
+ * чтобы админ видел тот же вид номера, что и у каркаса.
+ */
+const adminOrderText = ({ orderId, telegramUserId, state, total }) => {
+  const items = (state && state.items) || [];
+  const lines = [
+    `Новый заказ ORD-${orderId}`,
+    `Клиент Telegram ID: ${telegramUserId}`,
+    '',
+    'Позиции:',
+  ];
+  for (const item of items) {
+    lines.push(`• ${item.qty}× ${item.name} — ${Math.round(item.unitPrice ?? 0)} ₽`);
+  }
+  const pickupName = (state && state.pickupPointName) || '—';
+  const pickup =
+    state && state.pickupPointAddress ? `${pickupName} (${state.pickupPointAddress})` : pickupName;
+  lines.push(
+    '',
+    `Самовывоз: ${pickup}`,
+    `Время: ${(state && state.pickupTime) || '—'}`,
+    `Оплата: ${PAYMENT_LABELS[state && state.paymentMethod] || (state && state.paymentMethod) || '—'}`,
+    `Телефон: ${(state && state.phone) || '—'}`,
+    `Итого: ${Math.round(total ?? 0)} ₽`
+  );
+  return lines.join('\n');
+};
 
 class BotService {
   /**
@@ -70,7 +99,16 @@ class BotService {
 
       if (result.orderId && this.notifier) {
         try {
-          await this.notifier({ orderId: result.orderId, total: result.total ?? null });
+          await this.notifier({
+            orderId: result.orderId,
+            total: result.total ?? null,
+            text: adminOrderText({
+              orderId: result.orderId,
+              telegramUserId,
+              state: session.state,
+              total: result.total ?? null,
+            }),
+          });
         } catch (e) {
           // уведомление админа не должно ломать ответ клиенту: заказ уже в общей БД
           console.warn('[bot] уведомление админа не отправлено:', e.message);
@@ -88,8 +126,8 @@ class BotService {
     }
   }
 
-  adminOrderText(orderId, total) {
-    return adminOrderText(orderId, total);
+  adminOrderText({ orderId, telegramUserId, state, total }) {
+    return adminOrderText({ orderId, telegramUserId, state, total });
   }
 }
 
