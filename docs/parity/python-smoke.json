@@ -1,0 +1,72 @@
+{
+  "label": "python-smoke",
+  "started_at": "2026-10-11T17:39:36.507716+00:00",
+  "finished_at": "2026-10-11T17:41:49.918317+00:00",
+  "bot_username": "testfeedmer_bot",
+  "scenarios": [
+    {
+      "id": "happy_shaurma",
+      "description": "Полный заказ до submit — клиент + админ «Новый заказ» (ADMIN=test account)",
+      "ok": false,
+      "total_ms": 133414.10599998198,
+      "turns": [
+        {
+          "index": 0,
+          "send": "/cancel",
+          "reply": "Заказ отменён. Можете начать новый.",
+          "latency_ms": 409.91980000399053,
+          "ok": true,
+          "error": null,
+          "expect_failed": []
+        },
+        {
+          "index": 1,
+          "send": "/start",
+          "reply": "Привет! Я помогу оформить заказ на самовывоз. Нажмите «Начать заказ» или напишите заказ своими словами, например: «Две шаурмы и колу к 14:00»",
+          "latency_ms": 297.7533999364823,
+          "ok": true,
+          "error": null,
+          "expect_failed": []
+        },
+        {
+          "index": 2,
+          "send": "Куриная Стандарт и Dobriy газ. вода 0.5 к 14:00 на Молодежной 107б, картой, телефон 89001234567",
+          "reply": "Проверьте заказ: Куриная Стандарт 320г — 340 ₽, Добрый газ. вода 0.5 — 150 ₽. Итого 490 ₽, самовывоз Raketa на Молодежной 107б (ул. Гагарина, 5) к 14:00, оплата картой, телефон +79001234567. Подтверждаете?",
+          "latency_ms": 30511.213899822906,
+          "ok": true,
+          "error": null,
+          "expect_failed": []
+        },
+        {
+          "index": 3,
+          "send": "да",
+          "reply": "",
+          "latency_ms": null,
+          "ok": false,
+          "error": "no bot reply within 90s",
+          "expect_failed": []
+        }
+      ]
+    }
+  ],
+  "ok": false,
+  "latency_summary": {
+    "count": 3,
+    "mean": 10406.295699921126,
+    "p50": 409.91980000399053,
+    "p95": 27501.08448984101,
+    "max": 30511.213899822906
+  },
+  "quality_summary": {
+    "scenarios_passed": 0,
+    "scenarios_failed": 1,
+    "scenarios_total": 1,
+    "scenarios_pass_pct": 0.0,
+    "scenarios_fail_pct": 100.0,
+    "turns_passed": 3,
+    "turns_failed": 1,
+    "turns_total": 4,
+    "turns_pass_pct": 75.0,
+    "turns_fail_pct": 25.0
+  }
+}

@@ -71,7 +71,13 @@ ALTER TABLE public.chatids ADD COLUMN IF NOT EXISTS "max_chatid" BIGINT;
 --    поэтому синк прайса из Google-таблицы через штатный писатель молча падал.
 ALTER TABLE public.pricelist ADD COLUMN IF NOT EXISTS status TEXT;
 
--- 6. Остальные расхождения тестовой БД с миграциями FeedMer (НЕ автоматизируем —
+-- 6. chatids.telegram_chatid — int (int4) в миграциях FeedMer, а идентификаторы Telegram
+--    давно вышли за int32: аккаунт с id 8 862 284 665 (тестовый для бенча) не влезает, и
+--    регистрация клиента падает с «value out of int32 range» — заказ не создаётся ни нашим
+--    ботом, ни эталоном. Расширяем до BIGINT (для каркаса это безопасное расширение).
+ALTER TABLE public.chatids ALTER COLUMN telegram_chatid TYPE BIGINT;
+
+-- 7. Остальные расхождения тестовой БД с миграциями FeedMer (НЕ автоматизируем —
 --    это решения владельца схемы): таблицы chains нет (миграции:1287),
 --    cafes.chain_id нет (1292), superbots."maxBotToken" и cafes."maxBotToken"
 --    отсутствуют (1283-1284), sentmessages."message_id" остался старым типом (1285).

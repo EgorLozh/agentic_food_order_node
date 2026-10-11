@@ -1,0 +1,45 @@
+{
+  "label": "python-smoke2",
+  "started_at": "2026-10-11T17:44:16.294605+00:00",
+  "finished_at": "2026-10-11T17:45:47.749073+00:00",
+  "bot_username": "testfeedmer_bot",
+  "scenarios": [
+    {
+      "id": "happy_shaurma",
+      "description": "Полный заказ до submit — клиент + админ «Новый заказ» (ADMIN=test account)",
+      "ok": false,
+      "total_ms": 91453.5550000146,
+      "turns": [
+        {
+          "index": 0,
+          "send": "/cancel",
+          "reply": "",
+          "latency_ms": null,
+          "ok": false,
+          "error": "no bot reply within 90s",
+          "expect_failed": []
+        }
+      ]
+    }
+  ],
+  "ok": false,
+  "latency_summary": {
+    "count": 0,
+    "mean": null,
+    "p50": null,
+    "p95": null,
+    "max": null
+  },
+  "quality_summary": {
+    "scenarios_passed": 0,
+    "scenarios_failed": 1,
+    "scenarios_total": 1,
+    "scenarios_pass_pct": 0.0,
+    "scenarios_fail_pct": 100.0,
+    "turns_passed": 0,
+    "turns_failed": 1,
+    "turns_total": 1,
+    "turns_pass_pct": 0.0,
+    "turns_fail_pct": 100.0
+  }
+}
