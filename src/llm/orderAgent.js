@@ -32,6 +32,12 @@ class OrderAgent {
    */
   async respond({ telegramUserId, text, state = new OrderState(), history = [] }) {
     const toolbox = new OrderToolbox({ state, telegramUserId, deps: this.deps });
+    // добавить в результат сведения о созданном заказе (нужно боту для уведомления админа)
+    const finish = (turn) => ({
+      ...turn,
+      orderId: toolbox.submittedOrderId || null,
+      total: toolbox.submittedTotal ?? null,
+    });
 
     const messages = [{ role: 'system', content: ORDER_AGENT_SYSTEM }];
     for (const item of history) messages.push({ role: item.role, content: item.content });
@@ -54,12 +60,14 @@ class OrderAgent {
       const toolCalls = message.toolCalls || [];
 
       if (!toolCalls.length) {
-        return this.recoverTerminalResponse({
-          messages,
-          draft: (message.content || '').trim(),
-          toolRounds: toolRound - 1,
-          clearHistory: toolbox.shouldClearHistory(),
-        });
+        return finish(
+          await this.recoverTerminalResponse({
+            messages,
+            draft: (message.content || '').trim(),
+            toolRounds: toolRound - 1,
+            clearHistory: toolbox.shouldClearHistory(),
+          })
+        );
       }
 
       const terminalCalls = toolCalls.filter((call) => call.name === 'respond_to_customer');
@@ -69,12 +77,14 @@ class OrderAgent {
             '[agent] respond_to_customer смешан с действиями:',
             toolCalls.map((call) => call.name).join(', ')
           );
-          return this.invalidTerminalResponse(toolRound - 1, toolbox.shouldClearHistory());
+          return finish(this.invalidTerminalResponse(toolRound - 1, toolbox.shouldClearHistory()));
         }
-        return this.terminalResponse(
-          terminalCalls[0].arguments,
-          toolRound - 1,
-          toolbox.shouldClearHistory()
+        return finish(
+          this.terminalResponse(
+            terminalCalls[0].arguments,
+            toolRound - 1,
+            toolbox.shouldClearHistory()
+          )
         );
       }
 
@@ -106,12 +116,12 @@ class OrderAgent {
       }
     }
 
-    return {
+    return finish({
       replyText: toolbox.replyOnToolLimit(),
       toolRounds: MAX_TOOL_ROUNDS,
       clearHistory: toolbox.shouldClearHistory(),
       choices: [],
-    };
+    });
   }
 
   terminalResponse(rawArguments, toolRounds, clearHistory) {

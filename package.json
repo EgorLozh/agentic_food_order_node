@@ -5,11 +5,13 @@
   "description": "Бескаркасный бот заказов на Node.js. Логика создания заказа не дублируется: используется код каркаса FeedMer (DBlib.js) как библиотека.",
   "main": "src/index.js",
   "scripts": {
+    "start": "node src/index.js",
     "test": "node --test --test-force-exit",
     "smoke:order": "node scripts/smoke-order.js",
     "smoke:menu": "node scripts/smoke-menu.js",
     "smoke:tools": "node scripts/smoke-tools.js",
     "smoke:agent": "node scripts/smoke-agent.js",
+    "smoke:bot": "node scripts/smoke-bot.js",
     "check:feedmer": "node scripts/check-feedmer.js"
   },
   "engines": {
@@ -23,6 +25,7 @@
     "node-fetch": "^2.7.0",
     "pg": "^8.11.5",
     "pg-format": "^1.0.4",
-    "pino": "^9.6.0"
+    "pino": "^9.6.0",
+    "telegraf": "^4.16.3"
   }
 }

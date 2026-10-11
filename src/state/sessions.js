@@ -34,13 +34,19 @@ class SessionStore {
     return undefined;
   }
 
+  /** Принимает и SessionData, и обычный объект — удобно для тестов и внешних вызовов. */
+  static toSessionData(input) {
+    if (input instanceof SessionData) return input;
+    return new SessionData(input || {});
+  }
+
   async get(telegramUserId) {
     const session = this._sessions.get(telegramUserId);
     return session ? session.clone() : new SessionData();
   }
 
   async save(telegramUserId, session) {
-    this._sessions.set(telegramUserId, session.clone());
+    this._sessions.set(telegramUserId, SessionStore.toSessionData(session).clone());
   }
 
   appendTurn(session, { userText, assistantText }) {

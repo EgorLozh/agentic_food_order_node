@@ -516,7 +516,8 @@ class OrderToolbox {
     });
 
     this.submittedOrderId = created.orderId;
-    this.state.lastOrderId = created.orderId;
+    this.submittedTotal = created.total ?? null;
+    // как в эталоне: state.last_order_id не выставляем (в Python это поле только сбрасывается)
     this.state.resetForNewOrder();
     this.clearHistory = true;
     return { ok: true, order_id: created.orderId, total: created.total };

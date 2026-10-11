@@ -49,7 +49,6 @@ const SCRIPT = [
   console.log(`провайдер: ${config.llm.provider}, модель: ${llm.model}\n`);
 
   let session = await sessions.get(TELEGRAM_ID);
-  let orderId = null;
   try {
     for (const userText of SCRIPT) {
       const result = await orchestrator.handleMessage({
@@ -67,26 +66,35 @@ const SCRIPT = [
       if (result.clearHistory) session.history = [];
       await sessions.save(TELEGRAM_ID, session);
       session = await sessions.get(TELEGRAM_ID);
-      if (session.state.lastOrderId) orderId = session.state.lastOrderId;
     }
 
-    if (!orderId) {
-      console.error('SMOKE AGENT FAILED: агент не оформил заказ за сценарий');
-      process.exit(1);
-    }
-
+    // заказ ищем в БД по связке telegram id → userid (в черновике его уже нет: черновик сброшен)
     const pool = new Pool({ connectionString: config.db.url });
     try {
-      const order = (await pool.query('SELECT * FROM orders WHERE pk_orders = $1', [orderId])).rows[0];
+      const order = (
+        await pool.query(
+          'SELECT o.* FROM orders o JOIN chatids c ON c.userid = o.userid' +
+            ' WHERE c.telegram_chatid = $1 ORDER BY o.pk_orders DESC LIMIT 1',
+          [TELEGRAM_ID]
+        )
+      ).rows[0];
+      if (!order) {
+        console.error('SMOKE AGENT FAILED: агент не оформил заказ за сценарий');
+        process.exit(1);
+      }
       const items = (
-        await pool.query('SELECT id, item_name, item_price FROM items WHERE pk_order = $1 ORDER BY id', [orderId])
+        await pool.query('SELECT id, item_name, item_price FROM items WHERE pk_order = $1 ORDER BY id', [
+          order.pk_orders,
+        ])
       ).rows;
-      console.log(`заказ в БД: pk_orders=${order.pk_orders} cafeId=${order.cafeId} strdate=${order.strdate} ` +
-        `time=${order.deliveryTimeStart} payway=${order.payway} sum=${items.reduce((s, i) => s + i.item_price, 0)}`);
+      console.log(
+        `заказ в БД: pk_orders=${order.pk_orders} cafeId=${order.cafeId} strdate=${order.strdate} ` +
+          `time=${order.deliveryTimeStart} payway=${order.payway} sum=${items.reduce((s, i) => s + i.item_price, 0)}`
+      );
       for (const item of items) console.log(`  ${item.item_name} — ${item.item_price} ₽`);
 
-      await pool.query('DELETE FROM items WHERE pk_order = $1', [orderId]);
-      await pool.query('DELETE FROM orders WHERE pk_orders = $1', [orderId]);
+      await pool.query('DELETE FROM items WHERE pk_order = $1', [order.pk_orders]);
+      await pool.query('DELETE FROM orders WHERE pk_orders = $1', [order.pk_orders]);
       await pool.query('DELETE FROM chatids WHERE telegram_chatid = $1', [TELEGRAM_ID]);
       await pool.query('DELETE FROM "userInfoExtra" WHERE "userId" = $1', [order.userid]);
       await pool.query('DELETE FROM users WHERE userid = $1', [order.userid]);
