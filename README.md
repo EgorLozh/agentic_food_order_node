@@ -11,11 +11,11 @@
 | Ядро записи заказа кодом каркаса (`src/feedmer.js`, `src/orders/pickupOrder.js`) | ✅ работает, проверено сквозным тестом |
 | Меню и кафе функциями каркаса (`src/menu/feedmerMenu.js`) | ✅ работает (`db.getPricelist`/`getActualPricelist`/`getItemByNameFromDB`/`getAllCafesInfo`) |
 | Состояние заказа и 12 инструментов (`src/domain/*`, `src/tools/*`) | ✅ 22 теста + скриптовая беседа `smoke:tools` |
-| LLM-агент, оркестрация, сессии (`src/llm/*`, `src/bootstrap/*`, `src/state/*`) | ✅ код и 9 тестов на подменённой модели; живая проверка — `smoke:agent` (нужен ключ в `.env`) |
+| LLM-агент, оркестрация, сессии (`src/llm/*`, `src/bootstrap/*`, `src/state/*`) | ✅ код и 9 тестов; живая проверка пройдена (`smoke:agent`, заказ 284859) |
+| Telegram-бот (`src/bot/*`, `src/index.js`) | ✅ код, 8 тестов, скриптовый прогон `smoke:bot` (заказ 284860); ручная проверка в Telegram ждёт освобождения токена (его слушает другая копия бота) |
 | Проверка окружения (`scripts/check-feedmer.js`) | ✅ 18/19 (расхождение — пустой прайс у кафе 68/72 в тестовой БД) |
 | Скрипт выравнивания схемы БД (`scripts/fix-shared-db-schema.sql`) | ✅ применён к тестовой БД |
 | Конфиг (`src/config.js`) | ✅ |
-| Telegram-бот (telegraf/grammy) | ⏳ этап 3 |
 | Бенч-сценарии, паритет с Python, деплой | ⏳ этап 4 |
 
 План и риски: [docs/MIGRATION.md](docs/MIGRATION.md).
@@ -66,6 +66,8 @@ npm run smoke:order # сквозной заказ кодом каркаса + ч
 npm run smoke:menu  # кафе и меню функциями каркаса
 npm run smoke:tools # скриптовая беседа без LLM: инструменты → заказ в БД
 npm run smoke:agent # живая переписка агента с моделью (нужен ключ в .env)
+npm run smoke:bot   # тот же сервис, что у telegraf: диалог → заказ в БД → уведомление админа
+npm start           # запуск бота (нужен свободный BOT_TOKEN)
 npm run check:feedmer # окружение: код каркаса, коммит, зависимости, схема БД
 ```
 
