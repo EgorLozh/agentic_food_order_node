@@ -198,6 +198,17 @@ class MenuMatcher {
   }
 }
 
+/** ru → lat: названия одного бренда пишут и кириллицей, и латиницей («Ракета» ↔ «Raketa»). */
+const TRANSLIT = {
+  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'i', к: 'k',
+  л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'c',
+  ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya',
+};
+
+function translitNormalized(text) {
+  return normalize(text).replace(/[а-яё]/g, (ch) => (ch in TRANSLIT ? TRANSLIT[ch] : ch));
+}
+
 /** Порт resolve_pickup_point: (point, []) | (null, candidates) | (null, []). */
 function resolvePickupPoint(query, points) {
   if (!query) return { point: null, candidates: [] };
@@ -208,8 +219,51 @@ function resolvePickupPoint(query, points) {
   if (exact.length === 1) return { point: exact[0], candidates: [] };
   if (exact.length > 1) return { point: null, candidates: exact };
 
+  const direct = bestPickupMatch(stripped, active);
+  if (direct.point || direct.candidates.length) return direct;
+  // Прямое сравнение не нашло ничего: возможно, название написано другим алфавитом —
+  // «на Ракете» должно стать неоднозначным, а не «точка не найдена» (иначе бот молча
+  // выберет кафе по умолчанию). Здесь же терпим падежные формы («Ракете» → rakete ≈ raketa).
+  return bestPickupMatch(stripped, active, translitNormalized, { brandPrefix: true });
+}
+
+/** Длина общего начала двух токенов (для «raketa» ≈ «rakete»). */
+function sharedPrefixLength(a, b) {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i += 1;
+  return i;
+}
+
+/**
+ * Совпадение по названию бренда: транслитерированные токены «Ракете»/«Raketa» — одно имя в разных
+ * падежах и алфавитах. Работает только в транслитерационном проходе, прямое сравнение не трогается.
+ */
+function brandPrefixScore(query, candidate) {
+  // Служебные слова другого алфавита («на» → «na») отбрасываем по длине, иначе они портят долю.
+  const queryTokens = [...significantTokens(query)].filter((token) => token.length >= 4);
+  const candidateTokens = significantTokens(candidate);
+  if (!queryTokens.length || !candidateTokens.size) return 0;
+  let hits = 0;
+  for (const qt of queryTokens) {
+    if ([...candidateTokens].some((ct) => sharedPrefixLength(qt, ct) >= 4)) hits += 1;
+  }
+  return (hits / queryTokens.length) * 0.9;
+}
+
+function bestPickupMatch(query, active, prepare = (text) => text, options = {}) {
+  const queryPrepared = prepare(query);
   const scored = active
-    .map((point) => ({ point, score: scoreMatch(stripped, point.name, point.aliases || []) }))
+    .map((point) => {
+      const rawScore = scoreMatch(
+        queryPrepared,
+        prepare(point.name),
+        (point.aliases || []).map((alias) => prepare(alias))
+      );
+      const score = options.brandPrefix
+        ? Math.max(rawScore, brandPrefixScore(queryPrepared, prepare(point.name)))
+        : rawScore;
+      return { point, score };
+    })
     .filter((row) => row.score >= 0.75)
     .sort((a, b) => b.score - a.score);
 

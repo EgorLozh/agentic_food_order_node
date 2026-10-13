@@ -78,3 +78,23 @@ test('scoreMatch: точное совпадение — 1.0, разное — н
   assert.ok(scoreMatch('куриная мини', 'Куриная Мини 200г') > 0.75);
   assert.ok(scoreMatch('лимонад', 'Куриная Мини 200г') < 0.4);
 });
+
+test('точка кириллицей и в падеже: «Ракета»/«на Ракете» — та же неоднозначность, а не «не найдено»', () => {
+  const points = [
+    { pointId: '68', name: 'Raketa на Молодежной 107б', active: true, aliases: [] },
+    { pointId: '72', name: 'Raketa на Петрова 29ж', active: true, aliases: [] },
+    { pointId: '3', name: 'демо', active: true, aliases: [] },
+  ];
+
+  // Раньше прямое сравнение не находило кириллицу, и бот молча брал кафе по умолчанию
+  for (const query of ['Ракета', 'Ракете', 'на Ракете']) {
+    const { point, candidates } = resolvePickupPoint(query, points);
+    assert.equal(point, null, `${query}: точка не должна выбираться молча`);
+    assert.equal(candidates.length, 2, `${query}: должны быть обе «Ракеты»`);
+  }
+
+  // Уточнение улицей снимает неоднозначность даже в другом алфавите
+  assert.equal(resolvePickupPoint('ракета на петрова', points).point.pointId, '72');
+  assert.equal(resolvePickupPoint('Молодежной', points).point.pointId, '68');
+  assert.equal(resolvePickupPoint('пиццерия на луне', points).point, null);
+});
