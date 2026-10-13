@@ -187,5 +187,12 @@ test('respond_to_customer: валидация choices как в эталоне',
   assert.ok(validateCustomerResponse({ text: 'ок', choices: ['одна'] }).error);
   assert.ok(validateCustomerResponse({ text: 'ок', choices: ['Да', 'Да'] }).error);
   assert.ok(validateCustomerResponse({ text: 'ок', choices: ['Да', 'x'.repeat(41)] }).error);
-  assert.ok(validateCustomerResponse({ text: 'ок', choices: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] }).error);
+  // до 20 кнопок — валидно (позиции целой категории меню), 21 — уже нет
+  assert.equal(
+    validateCustomerResponse({ text: 'ок', choices: Array.from({ length: 15 }, (_, i) => `П${i}`) }).error,
+    undefined
+  );
+  assert.ok(
+    validateCustomerResponse({ text: 'ок', choices: Array.from({ length: 21 }, (_, i) => `П${i}`) }).error
+  );
 });

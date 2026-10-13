@@ -11,8 +11,8 @@ const moment = require('moment-timezone');
 test('orderDate: в таймзоне кафе', () => {
   const tz = 'Europe/Samara'; // UTC+4, как у кафе в тестовой БД
   const now = moment.tz('2026-10-11 20:00', 'YYYY-MM-DD HH:mm', tz);
-  const before = orderDate('23:00', tz);
-  const after = orderDate('10:00', tz);
+  const before = orderDate('23:00', tz, now);
+  const after = orderDate('10:00', tz, now);
   assert.match(before, /^\d{2}\.\d{2}\.\d{4}$/);
   // 10:00 в таймзоне кафе уже прошло → заказ должен быть на завтра
   assert.equal(
@@ -20,6 +20,8 @@ test('orderDate: в таймзоне кафе', () => {
     now.clone().add(1, 'day').format('DD.MM.YYYY'),
     'прошедшее время → следующий день'
   );
+  // 23:00 ещё не прошло → сегодня
+  assert.equal(before, now.format('DD.MM.YYYY'), 'будущее время → сегодня');
 });
 
 test('orderDate: без таймзоны (локальное время) не падает', () => {

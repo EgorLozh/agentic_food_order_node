@@ -13,7 +13,8 @@
     "smoke:agent": "node scripts/smoke-agent.js",
     "smoke:bot": "node scripts/smoke-bot.js",
     "check:feedmer": "node scripts/check-feedmer.js",
-    "seed:pricelist": "node scripts/seed-pricelist.js"
+    "seed:pricelist": "node scripts/seed-pricelist.js",
+    "dialog": "node scripts/dialog.js"
   },
   "engines": {
     "node": ">=20"

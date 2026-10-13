@@ -11,14 +11,17 @@
 
 const moment = require('moment-timezone'); // та же библиотека времени, что в каркасе
 
-/** scenarios.js:5941-5953 — дата заказа в таймзоне кафе, прошедшее время → завтра. */
-function orderDate(pickupTime, timezone) {
-  const now = timezone ? moment().tz(timezone) : moment();
-  const stamp = `${now.format('YYYY-MM-DD')} ${pickupTime}`;
+/**
+ * scenarios.js:5941-5953 — дата заказа в таймзоне кафе, прошедшее время → завтра.
+ * `now` — точка отсчёта; параметр нужен только тестам (иначе проверка зависит от календарной даты).
+ */
+function orderDate(pickupTime, timezone, now = null) {
+  const reference = now || (timezone ? moment().tz(timezone) : moment());
+  const stamp = `${reference.format('YYYY-MM-DD')} ${pickupTime}`;
   let planned = timezone
     ? moment.tz(stamp, 'YYYY-MM-DD HH:mm', timezone)
     : moment(stamp, 'YYYY-MM-DD HH:mm');
-  if (planned.isBefore(now)) planned = planned.add(1, 'day');
+  if (planned.isBefore(reference)) planned = planned.add(1, 'day');
   return planned.format('DD.MM.YYYY');
 }
 

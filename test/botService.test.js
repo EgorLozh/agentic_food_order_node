@@ -4,7 +4,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { BotService, START_TEXT, START_CHOICE, CANCEL_TEXT, BUSY_TEXT } = require('../src/bot/service');
+const {
+  BotService,
+  START_TEXT,
+  START_CHOICE,
+  CANCEL_TEXT,
+  BUSY_TEXT,
+  MAIN_MENU_TEXT,
+  NEW_ORDER_TEXT,
+  ensureChoicesInText,
+} = require('../src/bot/service');
 const { SessionStore } = require('../src/state/sessions');
 const { OrderState } = require('../src/domain/orderState');
 
@@ -52,7 +61,10 @@ test('текст: история пишется, choices прокидывают�
   });
 
   const result = await service.handleText({ telegramUserId: 7, text: 'привет' });
-  assert.equal(result.replyText, 'Что добавим?');
+  // кнопки продублированы в тексте (клиент видит варианты и в сообщении), история — как модель написала
+  assert.match(result.replyText, /^Что добавим\?/);
+  assert.match(result.replyText, /Шаурма/);
+  assert.match(result.replyText, /Лимонад/);
   assert.deepEqual(result.choices, ['Шаурма', 'Лимонад']);
 
   const session = await sessions.get(7);
@@ -149,4 +161,48 @@ test('пустой текст игнорируется', async () => {
   const result = await service.handleText({ telegramUserId: 7, text: '   ' });
   assert.equal(result.skipped, true);
   assert.equal(result.replyText, '');
+});
+
+test('кнопки дублируются в тексте, если модель их не перечислила', () => {
+  assert.equal(
+    ensureChoicesInText('Выберите раздел.', ['Шаурма', 'Снеки']),
+    'Выберите раздел.\n\nВарианты:\n• Шаурма\n• Снеки'
+  );
+  assert.equal(
+    ensureChoicesInText('Разделы: Шаурма и Снеки', ['Шаурма', 'Снеки']),
+    'Разделы: Шаурма и Снеки'
+  );
+});
+
+test('«Главное меню» показывает меню, не теряя черновик; «Новый заказ» сбрасывает черновик', async () => {
+  const seen = [];
+  const { service, sessions } = makeService({
+    orchestrate: async ({ text }) => {
+      seen.push(text);
+      return { replyText: `разделы: ${text}`, choices: ['Шаурма', 'Снеки'] };
+    },
+  });
+  await sessions.save(1, {
+    state: new OrderState({ phone: '+79001234567' }),
+    history: [{ role: 'user', content: 'привет' }],
+  });
+
+  await service.handleText({ telegramUserId: 1, text: MAIN_MENU_TEXT });
+  assert.deepEqual(seen, [MAIN_MENU_TEXT]);
+  assert.equal((await sessions.get(1)).state.phone, '+79001234567');
+
+  await service.handleText({ telegramUserId: 1, text: NEW_ORDER_TEXT });
+  assert.deepEqual(seen, [MAIN_MENU_TEXT, MAIN_MENU_TEXT]);
+  assert.equal((await sessions.get(1)).state.phone, null);
+});
+
+test('в ответе клиенту варианты есть и текстом, а не только кнопками', async () => {
+  const { service } = makeService({
+    orchestrate: async () => ({
+      replyText: 'Что заказываем?',
+      choices: ['Шаурма', 'Снеки', 'Напитки'],
+    }),
+  });
+  const result = await service.handleText({ telegramUserId: 1, text: 'привет' });
+  for (const choice of ['Шаурма', 'Снеки', 'Напитки']) assert.match(result.replyText, new RegExp(choice));
 });

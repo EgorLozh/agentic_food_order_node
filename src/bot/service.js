@@ -9,12 +9,26 @@
 const { config } = require('../config');
 
 const START_TEXT =
-  'Привет! Я помогу оформить заказ на самовывоз.\n' +
+  'Привет! Я помогу оформить заказ на самовывоз.\n\n' +
   'Нажмите «Начать заказ» или напишите заказ своими словами, например:\n' +
   '«Две шаурмы и колу к 14:00»';
 const START_CHOICE = 'Начать заказ';
-const CANCEL_TEXT = 'Заказ отменён. Можете начать новый.';
+const CANCEL_TEXT = 'Заказ отменён. Можете начать новый.\n\nЧто заказываем?';
 const BUSY_TEXT = 'Подождите, обрабатываю предыдущее сообщение...';
+const MAIN_MENU_TEXT = 'Главное меню';
+const NEW_ORDER_TEXT = 'Новый заказ';
+
+/**
+ * Кнопки не должны заменять текст: если подпись варианта не встречается в ответе, дописываем её
+ * отдельным блоком. Так клиент видит варианты и в сообщении, и на кнопках.
+ */
+function ensureChoicesInText(text, choices) {
+  if (!text || !choices || !choices.length) return text;
+  const lowered = String(text).toLowerCase();
+  const missing = choices.filter((choice) => !lowered.includes(String(choice).toLowerCase()));
+  if (!missing.length) return text;
+  return `${text}\n\nВарианты:\n${missing.map((choice) => `• ${choice}`).join('\n')}`;
+}
 
 const PAYMENT_LABELS = { cash: 'наличными', card: 'картой' };
 
@@ -76,6 +90,14 @@ class BotService {
     const userText = String(text ?? '').trim();
     if (!userText) return { replyText: '', choices: [], skipped: true };
 
+    // «Новый заказ» — начать заново (со сбросом черновика), «Главное меню» — вернуться к разделам,
+    // не теряя уже выбранное. Оба — обычные кнопки клавиатуры, а не команды Telegram.
+    let effectiveText = userText;
+    if (userText === NEW_ORDER_TEXT) {
+      await this.sessions.clear(telegramUserId);
+      effectiveText = MAIN_MENU_TEXT;
+    }
+
     if (this._locks.has(telegramUserId)) {
       return { replyText: BUSY_TEXT, choices: [], busy: true };
     }
@@ -84,7 +106,7 @@ class BotService {
       const session = await this.sessions.get(telegramUserId);
       const result = await this.orchestrator.handleMessage({
         telegramUserId,
-        text: userText,
+        text: effectiveText,
         state: session.state,
         history: session.history,
       });
@@ -115,9 +137,10 @@ class BotService {
         }
       }
 
+      const choices = result.choices || [];
       return {
-        replyText: result.replyText,
-        choices: result.choices || [],
+        replyText: ensureChoicesInText(result.replyText, choices),
+        choices,
         orderId: result.orderId || null,
         total: result.total ?? null,
       };
@@ -131,4 +154,14 @@ class BotService {
   }
 }
 
-module.exports = { BotService, START_TEXT, START_CHOICE, CANCEL_TEXT, BUSY_TEXT, adminOrderText };
+module.exports = {
+  BotService,
+  START_TEXT,
+  START_CHOICE,
+  CANCEL_TEXT,
+  BUSY_TEXT,
+  MAIN_MENU_TEXT,
+  NEW_ORDER_TEXT,
+  ensureChoicesInText,
+  adminOrderText,
+};

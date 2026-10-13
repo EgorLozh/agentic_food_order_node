@@ -22,8 +22,36 @@ function feedmerMenuSource() {
 const PICKUP_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const MIN_CHOICES = 2;
-const MAX_CHOICES = 8;
+// Было 8 как в эталоне, но из-за этого позиции больших групп («Соусы и добавки») выпадали
+// из кнопок и оставались только текстом. 20 кнопок хватает на целую категорию меню.
+const MAX_CHOICES = 20;
 const MAX_CHOICE_LABEL_LEN = 40;
+
+/**
+ * Добавки и соусы: их нельзя заказывать сами по себе, только к основному блюду.
+ * Штатный источник признака — классификация каркаса (pricelist.classification), но в тестовой
+ * БД она пустая (каркас заполняет её из своей таблицы классификаций), поэтому пока по названию.
+ * Паттерны подобраны по реальному меню кафе 68: «Сыр», «Оливки», «…соус…», «Доп.порция…»,
+ * «Поменьше соуса», «Без фирменного соуса» — добавки; «4 сыра» (пицца) — основное блюдо.
+ */
+const ADDON_PATTERNS = [
+  /соус/i,
+  /оливк/i,
+  /добавк/i,
+  /приправ/i,
+  /кетчуп/i,
+  /майонез/i,
+  /горчиц/i,
+  /^сыр\s*$/i,
+  /^сыр\s*\(/i,
+  /^доп\./i,
+  /поменьше/i,
+  /без .*соус/i,
+  /^хлеб\s*$/i,
+];
+
+const isAddonItem = (name) => ADDON_PATTERNS.some((re) => re.test(String(name || '').trim()));
+const hasMainItem = (items) => items.some((item) => !isAddonItem(item.name));
 
 /** Порт _validate_choices: список подписей кнопок или текст ошибки. */
 function validateChoices(raw) {
@@ -90,18 +118,19 @@ const ORDER_TOOL_DEFINITIONS = [
       description:
         'Завершить текущий ход и отправить клиенту ответ. Вызывай после всех нужных tools вместо ' +
         'обычного текста. choices=[] допустим только для времени HH:MM, телефона и сообщения после ' +
-        'успешного submit_order. Во всех остальных ответах передай 2–8 коротких уникальных подписей. ' +
+        'успешного submit_order. Во всех остальных ответах передай 2–20 коротких уникальных подписей. ' +
         'Сразу после set_items, если точка ещё не выбрана, choices ровно «Добавить ещё» и ' +
         '«К точке самовывоза». Иначе: категории из реальных позиций, реальные позиции, точки, ' +
-        '«наличные»/«карта» или «да»/«нет». Не передавай одну кнопку и не пиши служебные маркеры ' +
-        'кнопок в text.',
+        '«наличные»/«карта» или «да»/«нет». Всё, что попало в choices, перечисли и в text ' +
+        '(позиции — с ценами, каждая с новой строки). Не передавай одну кнопку и не пиши служебные ' +
+        'маркеры кнопок в text.',
       parameters: {
         type: 'object',
         properties: {
           text: { type: 'string', minLength: 1 },
           choices: {
             type: 'array',
-            maxItems: 8,
+            maxItems: 20,
             items: { type: 'string', minLength: 1, maxLength: 40 },
           },
         },
@@ -378,7 +407,21 @@ class OrderToolbox {
       };
     }
 
+    // Добавки/соусы не заказывают сами по себе: в корзине должно быть основное блюдо.
+    const before = this.state.items.map((item) => ({ ...item }));
     mergeItems(this.state, resolved, { replace: Boolean(args.replace) });
+    if (!hasMainItem(this.state.items)) {
+      this.state.items = before; // состав не меняем — отказ атомарный
+      return {
+        ok: false,
+        error: 'Add-ons cannot be ordered without a main dish.',
+        addons: resolved.map((item) => item.name),
+        hint:
+          'Соусы и добавки идут только к основному блюду. Спроси клиента, к какому блюду добавить, ' +
+          'и предложи блюда из меню (get_menu).',
+      };
+    }
+
     this.markCollecting();
     return { ok: true, items: this.state.items.map((item) => ({ ...item })) };
   }

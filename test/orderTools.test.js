@@ -5,7 +5,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { OrderState } = require('../src/domain/orderState');
-const { OrderToolbox, normalizeRuPhone, ORDER_TOOL_DEFINITIONS } = require('../src/tools/orderTools');
+const { OrderToolbox, normalizeRuPhone, ORDER_TOOL_DEFINITIONS, validateChoices, MAX_CHOICES } = require('../src/tools/orderTools');
 const { STATUSES } = require('../src/domain/orderSchema');
 
 const MENU = [
@@ -126,7 +126,10 @@ test('точка/время/оплата: валидация и неоднозн
 test('смена точки перепроверяет состав по меню нового кафе', async () => {
   const menus = {
     68: [{ name: 'Куриная Стандарт 320г', price: 340, stopped: false }],
-    72: [{ name: 'Куриная Стандарт 320г', price: 250, stopped: false }, { name: 'Сыр', price: 50, stopped: false }],
+    72: [
+      { name: 'Куриная Стандарт 320г', price: 250, stopped: false },
+      { name: 'Шаурма Мини 200г', price: 200, stopped: false },
+    ],
   };
   const { toolbox } = makeToolbox({
     deps: {
@@ -136,14 +139,13 @@ test('смена точки перепроверяет состав по мен�
   });
 
   await toolbox.dispatch('set_pickup_point', { query: 'Петрова' }); // кафе 72
-  await toolbox.dispatch('set_items', { items: [{ name: 'Сыр', qty: 2 }] });
-  assert.equal(toolbox.state.items.length, 1);
-
-  // переезд в кафе 68: «Сыр» там есть, «Куриная» — тоже; проверим позицию, которой нет
+  await toolbox.dispatch('set_items', { items: [{ name: 'Шаурма Мини 200г', qty: 2 }] });
   await toolbox.dispatch('set_items', { items: [{ name: 'Куриная Стандарт 320г', qty: 1 }] });
+  assert.equal(toolbox.state.items.length, 2);
+
   const moved = await toolbox.dispatch('set_pickup_point', { query: 'Молодежная' }); // кафе 68
   assert.equal(moved.ok, true);
-  assert.deepEqual(moved.dropped_items, ['Сыр']);
+  assert.deepEqual(moved.dropped_items, ['Шаурма Мини 200г']);
   assert.equal(toolbox.state.items.length, 1);
   assert.equal(toolbox.state.items[0].name, 'Куриная Стандарт 320г');
   assert.equal(toolbox.state.items[0].unitPrice, 340); // цена взята из меню нового кафе
@@ -247,4 +249,38 @@ test('ошибка источника не выходит наружу как и
   const menu = await toolbox.dispatch('get_menu');
   assert.equal(menu.ok, false);
   assert.match(menu.error, /temporarily unavailable/);
+});
+
+test('добавки не заказываются сами по себе — только к основному блюду', async () => {
+  const menu = [
+    { name: 'Куриная Стандарт 320г', price: 340, stopped: false },
+    { name: '4 сыра', price: 450, stopped: false }, // блюдо, а не добавка
+    { name: 'Сырный соус', price: 40, stopped: false },
+    { name: 'Оливки', price: 80, stopped: false },
+  ];
+  const { toolbox } = makeToolbox({ deps: { getMenuItems: async () => menu } });
+
+  const refused = await toolbox.dispatch('set_items', { items: [{ name: 'Сырный соус', qty: 1 }] });
+  assert.equal(refused.ok, false);
+  assert.match(refused.hint, /основному блюду/);
+  assert.deepEqual(refused.addons, ['Сырный соус']);
+  assert.equal(toolbox.state.items.length, 0, 'состав не должен меняться при отказе');
+
+  await toolbox.dispatch('set_items', { items: [{ name: 'Куриная Стандарт 320г', qty: 1 }] });
+  const withDish = await toolbox.dispatch('set_items', { items: [{ name: 'Оливки', qty: 2 }] });
+  assert.equal(withDish.ok, true);
+  assert.equal(toolbox.state.items.length, 2);
+
+  // «4 сыра» — основное блюдо: само по себе допустимо
+  const pizza = await toolbox.dispatch('set_items', { items: [{ name: '4 сыра', qty: 1 }], replace: true });
+  assert.equal(pizza.ok, true);
+  assert.equal(toolbox.state.items.length, 1);
+});
+
+test('choices: лимит поднят до 20, чтобы позиции категории не выпадали из кнопок', () => {
+  assert.equal(MAX_CHOICES, 20);
+  const many = Array.from({ length: 15 }, (_, i) => `Позиция ${i + 1}`);
+  assert.ok(Array.isArray(validateChoices(many)), '15 позиций должны проходить');
+  assert.match(validateChoices(['одна']), /2 to 20/);
+  assert.match(validateChoices(Array.from({ length: 21 }, (_, i) => `П${i}`)), /2 to 20/);
 });
