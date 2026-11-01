@@ -6,6 +6,9 @@
  * Пороги сохранены (0.4 / 0.75 / 0.85), чтобы поведение совпадало с эталоном.
  */
 
+/** Насколько близко должны совпасть оценки, чтобы считать выбор неоднозначным. */
+const TIE_EPSILON = 0.05;
+
 const STOPWORDS = new Set(['для', 'и', 'с', 'на', 'в', 'из', 'по', 'без', 'или', 'the', 'a', 'of']);
 
 const PROTEIN_TOKENS = [
@@ -170,8 +173,13 @@ class MenuMatcher {
     if (!scored.length) return { item: null, candidates: [] };
 
     const [best, runnerUp] = scored;
-    if (best.score >= 0.85) return { item: this.toOrderItem(best.item, qty), candidates: [] };
-    if (best.score >= 0.75 && (scored.length === 1 || best.score - runnerUp.score >= 0.15)) {
+    // Ничья = несколько позиций одинаково подходят («чизкейк» → три чизкейка с score 0.900).
+    // Раньше порог 0.85 молча выбирал первую — клиент получал не то, что просил.
+    const tied = Boolean(runnerUp) && best.score - runnerUp.score < TIE_EPSILON;
+    if (best.score >= 0.85 && !tied) {
+      return { item: this.toOrderItem(best.item, qty), candidates: [] };
+    }
+    if (best.score >= 0.75 && !tied && (scored.length === 1 || best.score - runnerUp.score >= 0.15)) {
       return { item: this.toOrderItem(best.item, qty), candidates: [] };
     }
 

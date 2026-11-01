@@ -155,10 +155,18 @@ const ORDER_TOOL_DEFINITIONS = [
       name: 'set_items',
       description:
         'Добавить или заменить позиции по названиям из get_menu. По умолчанию позиции мержатся: ' +
-        'количество того же блюда суммируется. Передай replace=true, если клиент заново перечислил весь состав заказа.',
+        'количество того же блюда суммируется. Передай replace=true, если клиент заново перечислил весь состав заказа. ' +
+        'Если клиент ответил на открытый вопрос (current_draft.pending_clarifications), вызови set_items ' +
+        'с точным названием выбранного кандидата. Пожелания без позиции («без лука», «приборы») передавай в notes ' +
+        '(можно без items).',
       parameters: {
         type: 'object',
         properties: {
+          notes: {
+            type: 'array',
+            description: 'Пожелания клиента к заказу: без лука, приборы, соус отдельно',
+            items: { type: 'string', maxLength: 120 },
+          },
           items: {
             type: 'array',
             items: {
@@ -172,8 +180,13 @@ const ORDER_TOOL_DEFINITIONS = [
             },
           },
           replace: { type: 'boolean', default: false },
+          drop_questions: {
+            type: 'array',
+            description:
+              'Слова позиций, от которых клиент отказался: вопросы по ним снимаются с очереди',
+            items: { type: 'string' },
+          },
         },
-        required: ['items'],
         additionalProperties: false,
       },
     },
@@ -376,17 +389,28 @@ class OrderToolbox {
   }
 
   async setItems(args = {}) {
-    const rawItems = args.items;
-    if (!Array.isArray(rawItems) || !rawItems.length) {
+    const rawItems = Array.isArray(args.items) ? args.items : [];
+    const rawNotes = Array.isArray(args.notes) ? args.notes : [];
+    const rawDrop = Array.isArray(args.drop_questions) ? args.drop_questions : [];
+    if (!rawItems.length && !rawNotes.length && !rawDrop.length) {
       return { ok: false, error: 'items must be a non-empty list' };
     }
-    const cafeId = await this.menuCafeId();
-    const menu = await this.deps.getMenuItems(cafeId);
-    const matcher = new MenuMatcher(menu);
 
-    const resolved = [];
-    const unknown = [];
-    const ambiguous = {};
+    this.dropClarifications(rawDrop);
+    const notesAdded = this.addNotes(rawNotes);
+    if (!rawItems.length) {
+      return {
+        ok: true,
+        applied: [],
+        dropped: rawDrop,
+        items: this.state.items.map((item) => ({ ...item })),
+        notes: [...this.state.notes],
+        notes_added: notesAdded,
+        pending_clarifications: this.state.openQuestions(),
+        next_question: this.nextQuestion(),
+      };
+    }
+
     for (const raw of rawItems) {
       const name = String(raw?.name ?? '').trim();
       const qty = raw?.qty;
@@ -394,25 +418,64 @@ class OrderToolbox {
       if (!Number.isInteger(qty) || qty < 1) {
         return { ok: false, error: `Invalid quantity for «${name}»` };
       }
-      const { item, candidates } = matcher.resolveItem(name, qty);
-      if (item) resolved.push(item);
-      else if (candidates.length) ambiguous[name] = candidates;
-      else unknown.push(name);
     }
 
-    if (unknown.length || Object.keys(ambiguous).length) {
-      return {
-        ok: false,
-        error: 'Some items were not resolved. Ask the customer to clarify.',
-        unknown,
-        ambiguous,
-      };
+    const cafeId = await this.menuCafeId();
+    const menu = await this.deps.getMenuItems(cafeId);
+    const matcher = new MenuMatcher(menu);
+
+    const resolved = [];
+    const unknown = [];
+    const queued = [];
+    for (const raw of rawItems) {
+      const name = String(raw.name).trim();
+      const qty = raw.qty;
+
+      // 1) клиент отвечает на открытый вопрос: имя совпало с кандидатом из очереди
+      const pendingEntry = this.pendingEntryFor(name);
+      if (pendingEntry) {
+        const menuItem = menu.find(
+          (entry) => String(entry.name).toLowerCase() === name.toLowerCase()
+        );
+        const answerQty = qty || pendingEntry.qty || 1;
+        this.state.resolveClarification(name);
+        if (menuItem) {
+          // полноценная позиция заказа (skuId, unitPrice) — иначе mergeItems слепит её с другой
+          resolved.push(MenuMatcher.toOrderItem(menuItem, answerQty));
+          continue;
+        }
+        unknown.push(name);
+        continue;
+      }
+
+      // 2) обычное распознавание по меню
+      const { item, candidates } = matcher.resolveItem(name, qty);
+      if (item) {
+        resolved.push(item);
+        continue;
+      }
+      if (candidates.length) {
+        // 3) неоднозначно — не теряем позицию, а ставим вопрос в очередь
+        const byName = new Map(menu.map((entry) => [entry.name, entry]));
+        const record = this.state.addClarification({
+          rawName: name,
+          qty,
+          candidates: candidates.map((candidateName) => ({
+            name: candidateName,
+            price: byName.get(candidateName)?.price ?? null,
+          })),
+        });
+        queued.push(record);
+        continue;
+      }
+      unknown.push(name);
     }
 
     // Добавки/соусы не заказывают сами по себе: в корзине должно быть основное блюдо.
     const before = this.state.items.map((item) => ({ ...item }));
     mergeItems(this.state, resolved, { replace: Boolean(args.replace) });
-    if (!hasMainItem(this.state.items)) {
+    // отказ только если добавляли добавки без основного блюда; пустой resolved — не повод падать
+    if (resolved.length && !hasMainItem(this.state.items)) {
       this.state.items = before; // состав не меняем — отказ атомарный
       return {
         ok: false,
@@ -425,7 +488,72 @@ class OrderToolbox {
     }
 
     this.markCollecting();
-    return { ok: true, items: this.state.items.map((item) => ({ ...item })) };
+    const pendingClarifications = this.state.openQuestions();
+    return {
+      ok: true,
+      applied: resolved.map((item) => ({ name: item.name, qty: item.qty })),
+      items: this.state.items.map((item) => ({ ...item })),
+      unknown,
+      notes: [...this.state.notes],
+      notes_added: notesAdded,
+      pending_clarifications: pendingClarifications,
+      next_question: this.nextQuestion(),
+      note: pendingClarifications.length
+        ? 'Часть позиций не уточнена. Спроси клиента ТОЛЬКО про next_question и передай в choices ' +
+          'имена его candidates. Остальные слоты (точка, время, оплата) не спрашивай, пока очередь пуста.'
+        : undefined,
+    };
+  }
+
+  /**
+   * Снять вопросы с очереди: клиент отказался от позиции («не надо лимонад»).
+   * Снимаем по точному совпадению слов клиента, а слово «все»/«all» чистит очередь целиком.
+   */
+  dropClarifications(rawDrop) {
+    const dropped = [];
+    for (const raw of rawDrop) {
+      const key = String(raw ?? '').trim().toLowerCase();
+      if (!key) continue;
+      if (key === 'все' || key === 'all') {
+        dropped.push(...this.state.pendingClarifications.map((entry) => entry.rawName));
+        this.state.pendingClarifications = [];
+        continue;
+      }
+      const index = this.state.pendingClarifications.findIndex(
+        (entry) => entry.rawName.toLowerCase() === key
+      );
+      if (index !== -1) dropped.push(this.state.pendingClarifications.splice(index, 1)[0].rawName);
+    }
+    return dropped;
+  }
+
+  /** Пожелания клиента («без лука», «приборы») — не слоты, но переживают ходы. */
+  addNotes(rawNotes) {
+    const added = [];
+    for (const raw of rawNotes) {
+      const text = String(raw ?? '').trim();
+      if (!text) continue;
+      if (this.state.notes.some((note) => note.toLowerCase() === text.toLowerCase())) continue;
+      this.state.notes.push(text);
+      added.push(text);
+    }
+    return added;
+  }
+
+  /** Запись очереди, на которую отвечает клиент (точное имя кандидата). */
+  pendingEntryFor(name) {
+    const chosen = String(name).trim().toLowerCase();
+    return (
+      this.state.pendingClarifications.find((record) =>
+        (record.candidates || []).some((candidate) => String(candidate.name).toLowerCase() === chosen)
+      ) || null
+    );
+  }
+
+  /** Первый открытый вопрос — его и задаём клиенту. */
+  nextQuestion() {
+    const [first] = this.state.openQuestions();
+    return first || null;
   }
 
   async listPickupPoints() {
@@ -530,6 +658,14 @@ class OrderToolbox {
   }
 
   async getOrderSummary() {
+    if (this.state.pendingClarifications.length) {
+      return {
+        ok: false,
+        error: 'There are open clarifications. Ask the customer about them first.',
+        open_questions: this.state.openQuestions(),
+        note: 'Передай в choices имена кандидатов первого вопроса и не собирай сводку, пока очередь не пуста.',
+      };
+    }
     const missing = this.missingFields();
     if (missing.length) {
       return { ok: false, missing_fields: missing, error: 'Order is incomplete' };
@@ -560,6 +696,14 @@ class OrderToolbox {
     if (this.submittedOrderId) {
       return { ok: false, error: 'Order already submitted in this message' };
     }
+    if (this.state.pendingClarifications.length) {
+      return {
+        ok: false,
+        error: 'There are open clarifications: the order is not complete yet.',
+        open_questions: this.state.openQuestions(),
+        note: 'Сначала уточни эти позиции (по одной), потом снова собери сводку.',
+      };
+    }
     const missing = this.missingFields();
     if (missing.length) {
       return { ok: false, error: 'Order is incomplete', missing_fields: missing };
@@ -582,6 +726,7 @@ class OrderToolbox {
         price: item.unitPrice,
         qty: item.qty,
       })),
+      notes: [...this.state.notes],
     });
 
     this.submittedOrderId = created.orderId;
@@ -598,6 +743,7 @@ class OrderToolbox {
       pickupTime: this.state.pickupTime,
       paymentMethod: this.state.paymentMethod,
       phone: this.state.phone,
+      notes: [...this.state.notes],
     };
     // как в эталоне: state.last_order_id не выставляем (в Python это поле только сбрасывается)
     this.state.resetForNewOrder();

@@ -17,6 +17,7 @@
 const { db } = require('../feedmer');
 const { config } = require('../config');
 const { orderDate, PAYWAY_BY_PAYMENT, PICKUP_TIME_PATTERN } = require('./rules');
+const { buildOrderComment, setOrderComment } = require('./orderComment');
 
 async function resolveUserId(telegramUserId) {
   const existing = await db.getUserIdByTelegramChatId(telegramUserId);
@@ -98,7 +99,12 @@ async function createPickupOrder(order) {
     throw new Error('db.saveOrder не вернул pk_orders (смотри лог каркаса выше)');
   }
 
-  return { orderId: String(pkOrders), userId, cafeId, date, total, payway };
+  // пометки клиента («без лука», «приборы») + метка источника — одной колонкой comment,
+  // чтобы кухня видела их в панели; падение записи заказ не отменяет
+  const comment = buildOrderComment(order.notes);
+  const commentSaved = await setOrderComment(pkOrders, comment);
+
+  return { orderId: String(pkOrders), userId, cafeId, date, total, payway, comment, commentSaved };
 }
 
 module.exports = { createPickupOrder, orderDate, resolveUserId, PAYWAY_BY_PAYMENT };

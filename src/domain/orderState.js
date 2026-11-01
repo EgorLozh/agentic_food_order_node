@@ -19,6 +19,9 @@ class OrderState {
     this.status = init.status ?? STATUSES.COLLECTING;
     this.lastOrderId = init.lastOrderId ?? null;
     this.pendingClarifications = init.pendingClarifications ? [...init.pendingClarifications] : [];
+    // пожелания клиента («без лука», «приборы») — не слоты заказа, но переживают ходы
+    // и уходят в комментарий заказа для кухни
+    this.notes = init.notes ? [...init.notes] : [];
     this.idempotencyKey = init.idempotencyKey ?? null;
   }
 
@@ -33,6 +36,7 @@ class OrderState {
     this.status = STATUSES.COLLECTING;
     this.lastOrderId = null;
     this.pendingClarifications = [];
+    this.notes = [];
     this.idempotencyKey = null;
   }
 
@@ -73,8 +77,61 @@ class OrderState {
       status: this.status,
       lastOrderId: this.lastOrderId,
       pendingClarifications: this.pendingClarifications.map((c) => ({ ...c })),
+      notes: [...this.notes],
       idempotencyKey: this.idempotencyKey,
     });
+  }
+
+  /**
+   * Поставить неразрешённую позицию в очередь вопросов. Повторный запрос той же позиции
+   * обновляет запись, а не плодит дубли.
+   * @param {{rawName: string, qty?: number, candidates?: Array<object>, kind?: string}} params
+   */
+  addClarification({ rawName, qty = 1, candidates = [], kind = 'item' }) {
+    const name = String(rawName || '').trim();
+    if (!name) return null;
+    const existing = this.pendingClarifications.find(
+      (entry) => entry.rawName.toLowerCase() === name.toLowerCase()
+    );
+    const record = {
+      rawName: name,
+      qty: Number.isInteger(qty) && qty > 0 ? qty : 1,
+      candidates: (candidates || []).map((candidate) =>
+        typeof candidate === 'string' ? { name: candidate, price: null } : { ...candidate }
+      ),
+      kind,
+    };
+    if (existing) {
+      Object.assign(existing, record);
+      return existing;
+    }
+    this.pendingClarifications.push(record);
+    return record;
+  }
+
+  /**
+   * Закрыть вопрос, если клиент назвал одного из кандидатов.
+   * @returns {null|{rawName: string, qty: number, candidates: Array<object>}} закрытая запись
+   */
+  resolveClarification(chosenName) {
+    const chosen = String(chosenName || '').trim().toLowerCase();
+    if (!chosen) return null;
+    const index = this.pendingClarifications.findIndex((entry) =>
+      (entry.candidates || []).some((candidate) => String(candidate.name).toLowerCase() === chosen)
+    );
+    if (index === -1) return null;
+    const [closed] = this.pendingClarifications.splice(index, 1);
+    return closed;
+  }
+
+  /** Открытые вопросы: их задаёт бот по одному, пока очередь не опустеет. */
+  openQuestions() {
+    return this.pendingClarifications.map((entry) => ({
+      raw_name: entry.rawName,
+      qty: entry.qty,
+      kind: entry.kind,
+      candidates: (entry.candidates || []).map((candidate) => ({ ...candidate })),
+    }));
   }
 
   toDraft() {
@@ -89,6 +146,7 @@ class OrderState {
       status: this.status,
       last_order_id: this.lastOrderId,
       pending_clarifications: this.pendingClarifications.map((c) => ({ ...c })),
+      notes: [...this.notes],
     };
   }
 }

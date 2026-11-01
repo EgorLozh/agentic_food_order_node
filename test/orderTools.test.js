@@ -11,6 +11,9 @@ const { STATUSES } = require('../src/domain/orderSchema');
 const MENU = [
   { name: 'Куриная Стандарт 320г', price: 300, stopped: false, description: 'шаурма', weight: '320' },
   { name: 'Воткинский лимонад', price: 110, stopped: false },
+  { name: 'Лимонад Натахтари', price: 170, stopped: false },
+  { name: 'Чизкейк клубничный', price: 160, stopped: false },
+  { name: 'Чизкейк шоколадный', price: 160, stopped: false },
   { name: 'Стоп-позиция', price: 100, stopped: true },
 ];
 
@@ -63,21 +66,120 @@ test('описания инструментов совпадают по имен
   ]);
 });
 
-test('set_items: мусор и неоднозначность не пишутся в черновик', async () => {
+test('set_items: неоднозначная позиция уходит в очередь вопросов, а не теряется', async () => {
   const { toolbox } = makeToolbox();
   const unknown = await toolbox.dispatch('set_items', { items: [{ name: 'абракадабра', qty: 1 }] });
-  assert.equal(unknown.ok, false);
+  assert.equal(unknown.ok, true);
   assert.deepEqual(unknown.unknown, ['абракадабра']);
   assert.equal(toolbox.state.items.length, 0);
+  assert.equal(toolbox.state.pendingClarifications.length, 0, 'мусор в очередь не ставим');
 
-  // «куриная шаурма» близка к двум позициям одинаково → уточнение, а не молчаливый выбор
-  const ambiguous = await toolbox.dispatch('set_items', { items: [{ name: 'куриная шаурма', qty: 1 }] });
-  assert.equal(ambiguous.ok, false);
-  assert.ok(Object.keys(ambiguous.ambiguous).length === 1, JSON.stringify(ambiguous));
+  // «чизкейк» близок к двум позициям → уточнение с кандидатами, позиция не теряется
+  const ambiguous = await toolbox.dispatch('set_items', { items: [{ name: 'чизкейк', qty: 1 }] });
+  assert.equal(ambiguous.ok, true);
+  assert.equal(ambiguous.pending_clarifications.length, 1);
+  assert.equal(ambiguous.next_question.raw_name, 'чизкейк');
+  assert.deepEqual(
+    ambiguous.next_question.candidates.map((candidate) => candidate.name).sort(),
+    ['Чизкейк клубничный', 'Чизкейк шоколадный']
+  );
+  assert.equal(toolbox.state.items.length, 0);
 
   const stopped = await toolbox.dispatch('set_items', { items: [{ name: 'Стоп-позиция', qty: 1 }] });
-  assert.equal(stopped.ok, false);
+  assert.equal(stopped.ok, true);
   assert.deepEqual(stopped.unknown, ['Стоп-позиция']);
+});
+
+test('set_items: две неоднозначные позиции в одной реплике — обе в очереди', async () => {
+  const { toolbox } = makeToolbox();
+  const result = await toolbox.dispatch('set_items', {
+    items: [
+      { name: 'чизкейк', qty: 1 },
+      { name: 'лимонад', qty: 2 },
+    ],
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.pending_clarifications.length, 2);
+  assert.equal(result.next_question.raw_name, 'чизкейк');
+  assert.match(result.note, /next_question/);
+
+  // ответ на первый вопрос применяет позицию и оставляет второй вопрос
+  const first = await toolbox.dispatch('set_items', {
+    items: [{ name: 'Чизкейк клубничный', qty: 1 }],
+  });
+  assert.equal(first.ok, true);
+  assert.deepEqual(toolbox.state.items.map((item) => item.name), ['Чизкейк клубничный']);
+  assert.equal(first.pending_clarifications.length, 1);
+  assert.equal(first.next_question.raw_name, 'лимонад');
+  assert.equal(first.next_question.qty, 2, 'количество из исходной реплики сохраняется');
+
+  // ответ на второй вопрос закрывает очередь, в корзине обе позиции
+  const second = await toolbox.dispatch('set_items', {
+    items: [{ name: 'Воткинский лимонад', qty: 1 }],
+  });
+  assert.equal(second.ok, true);
+  assert.deepEqual(
+    toolbox.state.items.map((item) => `${item.qty}x ${item.name}`).sort(),
+    ['1x Воткинский лимонад', '1x Чизкейк клубничный']
+  );
+  assert.equal(second.pending_clarifications.length, 0);
+  assert.equal(second.next_question, null);
+});
+
+test('клиент отказался от позиции — вопрос снимается с очереди', async () => {
+  const { toolbox } = makeToolbox();
+  await toolbox.dispatch('set_items', {
+    items: [
+      { name: 'чизкейк', qty: 1 },
+      { name: 'лимонад', qty: 1 },
+    ],
+  });
+  assert.equal(toolbox.state.pendingClarifications.length, 2);
+
+  const dropped = await toolbox.dispatch('set_items', { drop_questions: ['чизкейк'] });
+  assert.equal(dropped.ok, true);
+  assert.deepEqual(toolbox.state.pendingClarifications.map((entry) => entry.rawName), ['лимонад']);
+
+  // «все» чистит очередь целиком — иначе клиент не смог бы отказаться от всего
+  await toolbox.dispatch('set_items', { drop_questions: ['все'] });
+  assert.equal(toolbox.state.pendingClarifications.length, 0);
+});
+
+test('сводка и submit не проходят, пока есть открытые вопросы', async () => {
+  const { toolbox, submitted } = makeToolbox();
+  await toolbox.dispatch('set_items', { items: [{ name: 'чизкейк', qty: 1 }] });
+
+  const summary = await toolbox.dispatch('get_order_summary', {});
+  assert.equal(summary.ok, false);
+  assert.equal(summary.open_questions.length, 1);
+
+  const submit = await toolbox.dispatch('submit_order', {});
+  assert.equal(submit.ok, false);
+  assert.equal(submit.open_questions.length, 1);
+  assert.equal(submitted.length, 0);
+});
+
+test('пожелания клиента сохраняются в черновике и уходят в заказ', async () => {
+  const { toolbox, submitted } = makeToolbox();
+  const result = await toolbox.dispatch('set_items', {
+    items: [{ name: 'Куриная Стандарт 320г', qty: 1 }],
+    notes: ['без лука', 'приборы'],
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.notes, ['без лука', 'приборы']);
+
+  // повторное пожелание не дублируется
+  await toolbox.dispatch('set_items', { notes: ['без лука'] });
+  assert.deepEqual(toolbox.state.notes, ['без лука', 'приборы']);
+
+  await toolbox.dispatch('set_pickup_point', { query: 'Молодежная' });
+  await toolbox.dispatch('set_pickup_time', { time: '14:00' });
+  await toolbox.dispatch('set_payment_method', { payment_method: 'cash' });
+  await toolbox.dispatch('set_phone', { phone: '89001234567' });
+  await toolbox.dispatch('get_order_summary', {});
+  const submit = await toolbox.dispatch('submit_order', {});
+  assert.equal(submit.ok, true);
+  assert.deepEqual(submitted[0].notes, ['без лука', 'приборы']);
 });
 
 test('set_items: односложный запрос с одним совпадением резолвится (поведение эталона)', async () => {

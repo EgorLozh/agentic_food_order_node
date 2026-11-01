@@ -104,6 +104,22 @@ test('агент: сообщает о ходе статусами, не меня
   assert.deepEqual(statuses, ['thinking', 'get_menu', 'set_items']);
 });
 
+test('агент: незакрытый вопрос остаётся в состоянии после хода', async () => {
+  const llm = new FakeLLM([
+    action('set_items', { items: [{ name: 'куриная шаурма', qty: 1 }] }),
+    answer('Какую шаурму взять?', ['Куриная Стандарт 320г', 'Свиная Стандарт 320г']),
+  ]);
+  const state = new OrderState();
+  const agent = new OrderAgent({ llm, deps: makeDeps([]) });
+  const turn = await agent.respond({ telegramUserId: 42, text: 'хочу куриную шаурму', state });
+
+  assert.match(turn.replyText, /Какую шаурму/);
+  assert.equal(turn.choices.length, 2);
+  // вопрос не растворился: он живёт в состоянии, поэтому следующий ход его увидит
+  assert.equal(state.pendingClarifications.length, 1);
+  assert.equal(state.pendingClarifications[0].rawName, 'куриная шаурма');
+});
+
 test('агент: падение подписчика статусов не ломает ход', async () => {
   const llm = new FakeLLM([action('get_menu', {}), answer('Готово', ['Да', 'Нет'])]);
   const agent = new OrderAgent({ llm, deps: makeDeps([]) });
