@@ -21,6 +21,9 @@ const { DraftStream } = require('./draftStream');
 const { config } = require('../config');
 
 const TYPING_REFRESH_MS = 4000;
+
+/** Текст ответа, который копируется в черновик перед отправкой. */
+const defaultFinalText = (result) => (result && result.replyText ? result.replyText : null);
 const TWO_COLUMNS_FROM = 6; // больше шести кнопок — раскладываем по две в ряд
 
 function keyboardRows(choices) {
@@ -68,8 +71,15 @@ async function withTyping(ctx, fn, refreshMs = TYPING_REFRESH_MS) {
 /**
  * Ход с «черновиком»: статусы через sendMessageDraft + резервный «печатает…».
  * fn получает onProgress(status) — имя инструмента агента или служебную веху.
+ *
+ * Последним шагом черновик получает текст будущего ответа (finalText): так клиент заменяет
+ * черновик присланным сообщением и не оставляет в чате лишний пузырь со статусом.
  */
-async function withDraft(ctx, fn, { refreshMs = TYPING_REFRESH_MS, draft = config.bot.draft } = {}) {
+async function withDraft(
+  ctx,
+  fn,
+  { refreshMs = TYPING_REFRESH_MS, draft = config.bot.draft, finalText = defaultFinalText } = {}
+) {
   const chatId = ctx.chat?.id;
   const stream = new DraftStream({
     telegram: ctx.telegram,
@@ -88,7 +98,10 @@ async function withDraft(ctx, fn, { refreshMs = TYPING_REFRESH_MS, draft = confi
   tick();
   const timer = setInterval(tick, refreshMs);
   try {
-    return await fn((status) => stream.status(status));
+    const result = await fn((status) => stream.status(status));
+    const answer = typeof finalText === 'function' ? finalText(result) : null;
+    if (answer) await stream.setText(answer); // до отправки: черновик = ответ, хвоста не останется
+    return result;
   } finally {
     clearInterval(timer);
     await stream.stop();

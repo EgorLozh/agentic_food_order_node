@@ -35,15 +35,16 @@ test('ход: статусы идут в черновик, «печатает…
       onProgress('thinking');
       onProgress('get_menu');
       await new Promise((resolve) => setTimeout(resolve, 10));
-      return 'ответ';
+      return { replyText: 'ответ', choices: [] };
     },
     { refreshMs: 5, draft: { enabled: true, intervalMs: 0 } }
   );
 
-  assert.equal(result, 'ответ');
+  assert.equal(result.replyText, 'ответ');
   assert.deepEqual(
     ctx.events.filter((e) => e.kind === 'draft').map((e) => e.text),
-    [STATUS_LABELS.thinking, 'Ищу в меню…']
+    // статусы, затем сам ответ — иначе Telegram оставит в чате пузырь со статусом
+    [STATUS_LABELS.thinking, 'Ищу в меню', 'ответ']
   );
   assert.equal(ctx.events.filter((e) => e.kind === 'typing').length, 0);
   assert.ok(ctx.events.every((e) => e.chatId === 42));
@@ -56,12 +57,12 @@ test('ход: при ошибке статусов остаётся «печат
     async (onProgress) => {
       onProgress('get_menu');
       await new Promise((resolve) => setTimeout(resolve, 40));
-      return 'ответ';
+      return { replyText: 'ответ', choices: [] };
     },
     { refreshMs: 10, draft: { enabled: true, intervalMs: 0 } }
   );
 
-  assert.equal(result, 'ответ');
+  assert.equal(result.replyText, 'ответ');
   assert.ok(ctx.events.some((e) => e.kind === 'typing' && e.action === 'typing'));
   assert.equal(ctx.events.filter((e) => e.kind === 'draft').length, 1, 'после ошибки — ни одного статуса');
 });
@@ -75,6 +76,22 @@ test('ход: в группе статусы не отправляются, ра
 
   assert.equal(ctx.events.filter((e) => e.kind === 'draft').length, 0);
   assert.ok(ctx.events.some((e) => e.kind === 'typing'));
+});
+
+test('ход: пустой ответ в черновик не попадает', async () => {
+  const ctx = fakeCtx();
+  await withDraft(
+    ctx,
+    async (onProgress) => {
+      onProgress('get_menu');
+      return { replyText: '', choices: [] };
+    },
+    { refreshMs: 1000, draft: { enabled: true, intervalMs: 0 } }
+  );
+  assert.deepEqual(
+    ctx.events.filter((e) => e.kind === 'draft').map((e) => e.text),
+    [STATUS_LABELS.thinking, 'Ищу в меню']
+  );
 });
 
 test('черновик: поток гасится после хода', async () => {

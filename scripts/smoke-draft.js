@@ -13,7 +13,8 @@
 const { Telegraf } = require('telegraf');
 
 const { config } = require('../src/config');
-const { STATUS_LABELS, DraftStream } = require('../src/bot/draftStream');
+const { STATUS_LABELS } = require('../src/bot/draftStream');
+const { withDraft } = require('../src/bot/telegram');
 
 const chatId = Number(process.env.SMOKE_CHAT_ID || config.adminTelegramId);
 const STEPS = ['thinking', 'get_menu', 'set_items', 'get_order_summary', 'writing'];
@@ -58,12 +59,23 @@ async function main() {
   );
   console.log('финальное сообщение отправлено — черновик должен исчезнуть');
 
-  // Проверяем и обёртку: она глотает ошибки и не мешает ходу.
-  const stream = new DraftStream({ telegram, chatId, intervalMs: config.bot.draft.intervalMs });
-  const started = await stream.start();
-  await stream.status('get_menu');
-  await stream.stop();
-  console.log(`DraftStream.active до stop: ${started}, после stop: ${stream.active}`);
+  // Тот же путь, что у бота на ходе: withDraft (статусы → черновик = текст ответа → сообщение).
+  const ctx = { chat: { id: chatId, type: 'private' }, telegram };
+  const reply = 'Проверка боевого пути: статусы шли в черновике, а этот текст его заменил.';
+  await withDraft(
+    ctx,
+    async (onProgress) => {
+      for (const step of ['thinking', 'get_menu', 'get_order_summary']) {
+        onProgress(step);
+        await new Promise((resolve) => setTimeout(resolve, 900));
+      }
+      return { replyText: reply, choices: [] };
+    },
+    { draft: config.bot.draft }
+  );
+  await telegram.sendMessage(chatId, reply);
+  console.log('ход через withDraft отрисован: статусы → черновик с текстом ответа → сообщение');
+  console.log('в чате не должно остаться пузыря со статусом');
   console.log('OK');
   process.exit(0);
 }

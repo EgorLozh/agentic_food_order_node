@@ -54,7 +54,7 @@ test('черновик: инструменты агента переводятс
   await stream.status('нет_такого_инструмента');
   assert.deepEqual(
     telegram.calls.map((call) => call.text),
-    [STATUS_LABELS.thinking, 'Ищу в меню…', 'Формирую заказ…', STATUS_LABELS.thinking]
+    [STATUS_LABELS.thinking, 'Ищу в меню', 'Формирую заказ', STATUS_LABELS.thinking]
   );
   // один и тот же draft_id в рамках хода — иначе Telegram не анимирует обновления
   assert.equal(new Set(telegram.calls.map((call) => call.draft_id)).size, 1);
@@ -69,7 +69,7 @@ test('черновик: повтор того же статуса не отпр�
   await stream.status('get_menu');
   assert.deepEqual(
     telegram.calls.map((call) => call.text),
-    [STATUS_LABELS.thinking, 'Ищу в меню…']
+    [STATUS_LABELS.thinking, 'Ищу в меню']
   );
   await stream.stop();
 });
@@ -86,7 +86,24 @@ test('черновик: обновления не чаще интервала, �
   await new Promise((resolve) => setTimeout(resolve, 320));
   assert.deepEqual(
     telegram.calls.map((call) => call.text),
-    [STATUS_LABELS.thinking, 'Ищу в меню…']
+    [STATUS_LABELS.thinking, 'Ищу в меню']
+  );
+  await stream.stop();
+});
+
+test('черновик: подписи без многоточия — точки рисует сам клиент', () => {
+  for (const [key, label] of Object.entries(STATUS_LABELS)) {
+    assert.ok(!label.endsWith('…') && !label.endsWith('...'), `${key}: «${label}» с многоточием`);
+  }
+});
+
+test('черновик: setText ставит в черновик текст ответа (клиент заменяет его сообщением)', async () => {
+  const { stream, telegram } = makeStream({ intervalMs: 400 });
+  await stream.start();
+  await stream.setText('Проверьте заказ: 1× Куриная Стандарт 320г — 340 ₽');
+  assert.deepEqual(
+    telegram.calls.map((call) => call.text),
+    [STATUS_LABELS.thinking, 'Проверьте заказ: 1× Куриная Стандарт 320г — 340 ₽']
   );
   await stream.stop();
 });
