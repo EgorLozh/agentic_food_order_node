@@ -95,6 +95,60 @@ cd D:\agentic_food_order
 транслитерацией и терпимостью к падежам (`«Ракета» ↔ «Raketa»`, `«Ракете» → rakete ≈ raketa`) —
 вторым проходом, прямое сравнение не тронуто. Это и дало 9/9 вместо 8/9.
 
+## Прогон бенча близнеца после фичи «статусы хода» (01.11.2026)
+
+Прогнали E2E-бенч Python-проекта (`D:/agentic_food_order`, Telethon) по нашему боту с новым
+черновиком сообщения — чтобы убедиться, что статусы не изменили ни текстов ответов, ни заказы.
+
+Команды:
+
+```bash
+# юнит-тесты эталона
+cd D:/agentic_food_order && .venv/Scripts/python.exe -m pytest -q --ignore=tests/test_bench_scenarios.py
+# наш бот
+cd D:/agentic_food_order_node && npm start
+# бенч эталона по нашему боту: строгие сценарии из config/scenarios
+cd D:/agentic_food_order && .venv/Scripts/python.exe -m food_order.bench.cli run \
+  --label node-draft-strict --scenarios config/scenarios -o D:/agentic_food_order_node/docs/parity/node-draft.json
+# и те же «ослабленные» копии, на которых гоняли паритет раньше
+.venv/Scripts/python.exe -m food_order.bench.cli run --label node-draft-relaxed \
+  --scenarios D:/agentic_food_order_node/docs/parity/scenarios \
+  -o D:/agentic_food_order_node/docs/parity/node-draft-relaxed.json
+```
+
+Результаты:
+
+| Прогон | Сценарии | Ходы | Отчёт |
+|---|---|---|---|
+| строгие сценарии эталона | 4/9 (44.4 %) | 31/38 (81.6 %) | `docs/parity/node-draft.json` |
+| ослабленные копии (как в паритете) | **9/9 (100 %)** | **38/38 (100 %)** | `docs/parity/node-draft-relaxed.json` |
+
+Строгий прогон падает ровно там же, где падает сам эталон: `docs/parity/python.json` — 44.4 % / 86.8 %
+и те же пять сценариев. Причина одна и та же у обоих ботов — ожидания формулировки:
+
+* `expect_regex: (подтверд|подтверж)` — оба бота отвечают «Проверьте заказ: … Всё верно?»
+  (`happy_shaurma`, `edit_after_summary`, `replace_item`, `stepwise_slots`);
+* `ambiguous_pickup`: ожидаются обе точки («Молодеж» + «Петров»), бот называет выбранную одну.
+
+То есть это свойство сценариев (написанных под «Подтверждаете заказ?»), а не регресс; на ослабленных
+копиях, где регексп допускает «верно|правильно», бот проходит 38/38 — как и в прогоне `node-fix`.
+Сравнение с эталоном (`compare python-relaxed.json node-draft-relaxed.json`): у нас 100 % против
+88.9 %, задержки p50 1857 мс / p95 8518 мс против 1376 / 6896 мс.
+
+Юнит-тесты эталона: **77 passed, 1 skipped, 1 failed** — `test_postgres_orders.py::test_create_order_lets_the_database_assign_ids`
+ждёт жёстко зашитую дату `04.10.2026` (день, когда тест писали) и падает в любой другой день;
+к нашему боту и к черновику отношения не имеет, в репозитории-близнеце не правили.
+
+Заказы прогона: `284886`–`284897` (кафе 68). Уборка, если нужна:
+
+```sql
+DELETE FROM items WHERE pk_order BETWEEN 284886 AND 284897;
+DELETE FROM orders WHERE pk_orders BETWEEN 284886 AND 284897;
+```
+
+Черновики для Telethon невидимы (это не сообщения), поэтому на проверки бенча фича не влияет — что и
+подтвердил прогон: тексты ответов совпадают с `node-fix.json` дословно.
+
 ## Что осталось для этапа 4
 
 * Инструкция деплоя: чекаут FeedMer рядом (фиксированный коммит `2414bf3f`), `check:feedmer` в
