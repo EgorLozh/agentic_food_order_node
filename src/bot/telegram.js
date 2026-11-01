@@ -6,14 +6,19 @@
  *
  * Что здесь решается (по фидбэку с тестирования):
  * - «Главное меню» есть на каждом шаге, после оформленного заказа добавляется «Новый заказ»;
- * - индикатор «печатает…» держится всё время, пока агент формирует ответ (Telegram гасит его
- *   через ~5 секунд, поэтому обновляем раз в 4 с);
+ * - пока агент формирует ответ, клиент видит статусы прямо в чате («Думаю…», «Ищу в меню…»,
+ *   «Формирую заказ…») через sendMessageDraft — см. src/bot/draftStream.js. Финальный ответ
+ *   по-прежнему уходит обычным сообщением с клавиатурой: черновик при этом исчезает;
+ * - если статусы недоступны (группа, старый сервер, бот без Forum Topic Mode), остаётся прежний
+ *   индикатор «печатает…»: Telegram гасит его через ~5 секунд, поэтому обновляем раз в 4 с;
  * - длинные наборы кнопок (категории меню) раскладываются в две колонки, чтобы сообщение
  *   не превращалось в простыню.
  */
 
 const { Telegraf, Markup } = require('telegraf');
 const { MAIN_MENU_TEXT, NEW_ORDER_TEXT } = require('./service');
+const { DraftStream } = require('./draftStream');
+const { config } = require('../config');
 
 const TYPING_REFRESH_MS = 4000;
 const TWO_COLUMNS_FROM = 6; // больше шести кнопок — раскладываем по две в ряд
@@ -60,7 +65,37 @@ async function withTyping(ctx, fn, refreshMs = TYPING_REFRESH_MS) {
   }
 }
 
-function createBot({ token, service }) {
+/**
+ * Ход с «черновиком»: статусы через sendMessageDraft + резервный «печатает…».
+ * fn получает onProgress(status) — имя инструмента агента или служебную веху.
+ */
+async function withDraft(ctx, fn, { refreshMs = TYPING_REFRESH_MS, draft = config.bot.draft } = {}) {
+  const chatId = ctx.chat?.id;
+  const stream = new DraftStream({
+    telegram: ctx.telegram,
+    chatId,
+    chatType: ctx.chat?.type || 'private',
+    enabled: draft.enabled,
+    intervalMs: draft.intervalMs,
+  });
+  // «печатает…» нужен только пока статусы не работают — иначе он дублирует черновик
+  const tick = () => {
+    if (stream.active) return;
+    ctx.telegram.sendChatAction(chatId, 'typing').catch(() => {});
+  };
+
+  await stream.start();
+  tick();
+  const timer = setInterval(tick, refreshMs);
+  try {
+    return await fn((status) => stream.status(status));
+  } finally {
+    clearInterval(timer);
+    await stream.stop();
+  }
+}
+
+function createBot({ token, service, draft = config.bot.draft }) {
   const bot = new Telegraf(token);
 
   bot.start(async (ctx) => {
@@ -77,8 +112,10 @@ function createBot({ token, service }) {
     const text = (ctx.message?.text || '').trim();
     if (!text) return;
     if (text === '/start' || text === '/cancel') return; // обработано выше
-    const result = await withTyping(ctx, () =>
-      service.handleText({ telegramUserId: ctx.from.id, text })
+    const result = await withDraft(
+      ctx,
+      (onProgress) => service.handleText({ telegramUserId: ctx.from.id, text, onProgress }),
+      { draft }
     );
     await replyWithChoices(ctx, result);
   });
@@ -90,4 +127,4 @@ function createBot({ token, service }) {
   return bot;
 }
 
-module.exports = { createBot, buildKeyboard, keyboardRows, withTyping };
+module.exports = { createBot, buildKeyboard, keyboardRows, withTyping, withDraft };

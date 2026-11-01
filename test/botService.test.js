@@ -27,6 +27,25 @@ function makeService({ orchestrate, notifier = null } = {}) {
   return { service, sessions };
 }
 
+test('ход: onProgress доходит до оркестратора (статусы черновика)', async () => {
+  let seen = null;
+  const { service } = makeService({
+    orchestrate: async (payload) => {
+      seen = payload.onProgress;
+      payload.onProgress('get_menu');
+      return { replyText: 'ок', choices: [] };
+    },
+  });
+  const statuses = [];
+  await service.handleText({
+    telegramUserId: 1,
+    text: 'привет',
+    onProgress: (status) => statuses.push(status),
+  });
+  assert.equal(typeof seen, 'function');
+  assert.deepEqual(statuses, ['get_menu']);
+});
+
 test('start: чистит сессию и предлагает «Начать заказ»', async () => {
   const { service, sessions } = makeService();
   await sessions.save(1, { state: new OrderState({ phone: '+79001234567' }), history: [] });

@@ -30,7 +30,18 @@ class OrderAgent {
   /**
    * @returns {Promise<{replyText: string, toolRounds: number, clearHistory: boolean, choices: string[]}>}
    */
-  async respond({ telegramUserId, text, state = new OrderState(), history = [] }) {
+  async respond({ telegramUserId, text, state = new OrderState(), history = [], onProgress = null }) {
+    // Статусы хода для «черновика» в Telegram: имена инструментов и служебные вехи.
+    // Необязательные и не влияют на ход — ошибка подписчика не должна ломать ответ.
+    const emit = (status) => {
+      if (typeof onProgress !== 'function') return;
+      try {
+        onProgress(status);
+      } catch (e) {
+        /* статус — украшение, а не логика */
+      }
+    };
+    emit('thinking');
     const toolbox = new OrderToolbox({ state, telegramUserId, deps: this.deps });
     // добавить в результат сведения о созданном заказе (нужно боту для уведомления админа)
     const finish = (turn) => ({
@@ -60,6 +71,7 @@ class OrderAgent {
       const toolCalls = message.toolCalls || [];
 
       if (!toolCalls.length) {
+        emit('writing');
         return finish(
           await this.recoverTerminalResponse({
             messages,
@@ -105,6 +117,7 @@ class OrderAgent {
         } catch (e) {
           args = null;
         }
+        emit(call.name);
         const result = args
           ? await toolbox.dispatch(call.name, args)
           : { ok: false, error: 'Tool arguments were not valid JSON' };

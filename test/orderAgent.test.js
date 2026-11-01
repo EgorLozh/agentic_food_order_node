@@ -82,6 +82,37 @@ test('агент: полный ход — tools, сводка, submit и отв�
   assert.equal(submitted[0].pickupTime, '15:00');
 });
 
+test('агент: сообщает о ходе статусами, не меняя результат', async () => {
+  const llm = new FakeLLM([
+    action('get_menu', {}),
+    action('set_items', { items: [{ name: 'Куриная Стандарт 320г', qty: 1 }] }),
+    answer('Что добавим? Если нужного варианта нет, напишите своими словами', ['Добавить ещё', 'К точке самовывоза']),
+  ]);
+  const agent = new OrderAgent({ llm, deps: makeDeps([]) });
+  const statuses = [];
+  const turn = await agent.respond({
+    telegramUserId: 42,
+    text: 'Хочу куриную',
+    onProgress: (status) => statuses.push(status),
+  });
+
+  assert.equal(turn.replyText, 'Что добавим? Если нужного варианта нет, напишите своими словами');
+  assert.deepEqual(statuses, ['thinking', 'get_menu', 'set_items']);
+});
+
+test('агент: падение подписчика статусов не ломает ход', async () => {
+  const llm = new FakeLLM([action('get_menu', {}), answer('Готово', ['Да', 'Нет'])]);
+  const agent = new OrderAgent({ llm, deps: makeDeps([]) });
+  const turn = await agent.respond({
+    telegramUserId: 42,
+    text: 'привет',
+    onProgress: () => {
+      throw new Error('telegram упал');
+    },
+  });
+  assert.equal(turn.replyText, 'Готово');
+});
+
 test('агент: кнопки из respond_to_customer доходят до результата', async () => {
   const llm = new FakeLLM([
     action('get_menu', {}),

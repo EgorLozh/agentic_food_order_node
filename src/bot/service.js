@@ -86,7 +86,7 @@ class BotService {
     return { replyText: CANCEL_TEXT, choices: [] };
   }
 
-  async handleText({ telegramUserId, text }) {
+  async handleText({ telegramUserId, text, onProgress = null }) {
     const userText = String(text ?? '').trim();
     if (!userText) return { replyText: '', choices: [], skipped: true };
 
@@ -109,6 +109,7 @@ class BotService {
         text: effectiveText,
         state: session.state,
         history: session.history,
+        onProgress,
       });
 
       if (result.clearHistory) session.history = [];

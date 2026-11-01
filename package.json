@@ -12,6 +12,7 @@
     "smoke:tools": "node scripts/smoke-tools.js",
     "smoke:agent": "node scripts/smoke-agent.js",
     "smoke:bot": "node scripts/smoke-bot.js",
+    "smoke:draft": "node scripts/smoke-draft.js",
     "check:feedmer": "node scripts/check-feedmer.js",
     "seed:pricelist": "node scripts/seed-pricelist.js",
     "dialog": "node scripts/dialog.js"

@@ -18,7 +18,7 @@ class OrderOrchestrator {
   /**
    * @returns {Promise<{replyText: string, clearHistory: boolean, choices: string[]}>}
    */
-  async handleMessage({ telegramUserId, text, state, history }) {
+  async handleMessage({ telegramUserId, text, state, history, onProgress = null }) {
     let timer;
     try {
       const timeout = new Promise((_, reject) => {
@@ -28,7 +28,7 @@ class OrderOrchestrator {
         );
       });
       const turn = await Promise.race([
-        this.agent.respond({ telegramUserId, text, state, history }),
+        this.agent.respond({ telegramUserId, text, state, history, onProgress }),
         timeout,
       ]);
       return {

@@ -34,6 +34,11 @@ const config = {
 
   bot: {
     notifyAdmin: process.env.ORDER_NOTIFY_ADMIN === '1',
+    // Статусы хода в «черновике» сообщения (sendMessageDraft). TELEGRAM_DRAFT_STREAM=0 выключает.
+    draft: {
+      enabled: process.env.TELEGRAM_DRAFT_STREAM !== '0',
+      intervalMs: Number(process.env.TELEGRAM_DRAFT_INTERVAL_MS || 400),
+    },
   },
 
   // Тот же код каркаса пишет заказ, поэтому и переменные те же.
