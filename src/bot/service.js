@@ -7,6 +7,7 @@
  */
 
 const { config } = require('../config');
+const { formatReply } = require('./format');
 
 const START_TEXT =
   'Привет! Я помогу оформить заказ на самовывоз.\n\n' +
@@ -19,15 +20,30 @@ const MAIN_MENU_TEXT = 'Главное меню';
 const NEW_ORDER_TEXT = 'Новый заказ';
 
 /**
+ * Подпись считается показанной, только если встречается отдельным словом/строкой:
+ * поиск подстроки врал («да» находилось внутри «Стандарт», и в блок попадало одно «нет»).
+ */
+function choiceAppears(text, choice) {
+  // дежурная фраза содержит «нет»/«да» — из сравнения её выкидываем, иначе подпись «нет»
+  // считается показанной и в блок «Варианты:» попадает только вторая кнопка
+  const cleaned = String(text).replace(
+    /Если нужного варианта нет,?\s*напишите своими словами\.?/giu,
+    ''
+  );
+  const escaped = String(choice).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}(?=$|[^\\p{L}\\p{N}])`, 'iu');
+  return pattern.test(cleaned);
+}
+
+/**
  * Кнопки не должны заменять текст: если подпись варианта не встречается в ответе, дописываем её
  * отдельным блоком. Так клиент видит варианты и в сообщении, и на кнопках.
  */
 function ensureChoicesInText(text, choices) {
   if (!text || !choices || !choices.length) return text;
-  const lowered = String(text).toLowerCase();
-  const missing = choices.filter((choice) => !lowered.includes(String(choice).toLowerCase()));
+  const missing = choices.filter((choice) => !choiceAppears(text, choice));
   if (!missing.length) return text;
-  return `${text}\n\nВарианты:\n${missing.map((choice) => `• ${choice}`).join('\n')}`;
+  return formatReply(`${text}\n\nВарианты:\n${missing.map((choice) => `• ${choice}`).join('\n')}`);
 }
 
 const PAYMENT_LABELS = { cash: 'наличными', card: 'картой' };
@@ -37,8 +53,10 @@ const PAYMENT_LABELS = { cash: 'наличными', card: 'картой' };
  * format_admin_order_message). Номер заказа — это pk_orders из общей БД, с префиксом ORD-,
  * чтобы админ видел тот же вид номера, что и у каркаса.
  */
-const adminOrderText = ({ orderId, telegramUserId, state, total }) => {
-  const items = (state && state.items) || [];
+const adminOrderText = ({ orderId, telegramUserId, state, total, summary = null }) => {
+  // summary — снимок заказа из submit_order: после submit состояние черновика уже очищено
+  const source = summary || state || {};
+  const items = source.items || [];
   const lines = [
     `Новый заказ ORD-${orderId}`,
     `Клиент Telegram ID: ${telegramUserId}`,
@@ -48,15 +66,17 @@ const adminOrderText = ({ orderId, telegramUserId, state, total }) => {
   for (const item of items) {
     lines.push(`• ${item.qty}× ${item.name} — ${Math.round(item.unitPrice ?? 0)} ₽`);
   }
-  const pickupName = (state && state.pickupPointName) || '—';
-  const pickup =
-    state && state.pickupPointAddress ? `${pickupName} (${state.pickupPointAddress})` : pickupName;
+  const pickupName = source.pickupPointName || '—';
+  const pickup = source.pickupPointAddress
+    ? `${pickupName} (${source.pickupPointAddress})`
+    : pickupName;
   lines.push(
     '',
     `Самовывоз: ${pickup}`,
-    `Время: ${(state && state.pickupTime) || '—'}`,
-    `Оплата: ${PAYMENT_LABELS[state && state.paymentMethod] || (state && state.paymentMethod) || '—'}`,
-    `Телефон: ${(state && state.phone) || '—'}`,
+    `Время: ${source.pickupTime || '—'}`,
+    `Оплата: ${PAYMENT_LABELS[source.paymentMethod] || source.paymentMethod || '—'}`,
+    `Телефон: ${source.phone || '—'}`,
+    '',
     `Итого: ${Math.round(total ?? 0)} ₽`
   );
   return lines.join('\n');
@@ -130,6 +150,7 @@ class BotService {
               telegramUserId,
               state: session.state,
               total: result.total ?? null,
+              summary: result.orderSummary || null,
             }),
           });
         } catch (e) {
@@ -139,8 +160,11 @@ class BotService {
       }
 
       const choices = result.choices || [];
+      // структура (переносы, пункты, пустые строки) — до дописывания вариантов,
+      // чтобы блок «Варианты:» тоже прошёл через форматтер
+      const formatted = formatReply(result.replyText);
       return {
-        replyText: ensureChoicesInText(result.replyText, choices),
+        replyText: ensureChoicesInText(formatted, choices),
         choices,
         orderId: result.orderId || null,
         total: result.total ?? null,
@@ -150,8 +174,8 @@ class BotService {
     }
   }
 
-  adminOrderText({ orderId, telegramUserId, state, total }) {
-    return adminOrderText({ orderId, telegramUserId, state, total });
+  adminOrderText({ orderId, telegramUserId, state, total, summary = null }) {
+    return adminOrderText({ orderId, telegramUserId, state, total, summary });
   }
 }
 

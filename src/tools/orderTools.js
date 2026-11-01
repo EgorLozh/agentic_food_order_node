@@ -293,6 +293,8 @@ class OrderToolbox {
       defaultCafeId: deps.defaultCafeId ?? config.order.defaultCafeId,
     };
     this.submittedOrderId = null;
+    this.submittedTotal = null;
+    this.submittedSummary = null;
     this.clearHistory = false;
   }
 
@@ -584,6 +586,19 @@ class OrderToolbox {
 
     this.submittedOrderId = created.orderId;
     this.submittedTotal = created.total ?? null;
+    // состав и поля — снимок ДО resetForNewOrder: иначе уведомление админу уходит с пустыми строками
+    this.submittedSummary = {
+      items: this.state.items.map((item) => ({
+        name: item.name,
+        qty: item.qty,
+        unitPrice: item.unitPrice,
+      })),
+      pickupPointName: this.state.pickupPointName,
+      pickupPointAddress: this.state.pickupPointAddress,
+      pickupTime: this.state.pickupTime,
+      paymentMethod: this.state.paymentMethod,
+      phone: this.state.phone,
+    };
     // как в эталоне: state.last_order_id не выставляем (в Python это поле только сбрасывается)
     this.state.resetForNewOrder();
     this.clearHistory = true;

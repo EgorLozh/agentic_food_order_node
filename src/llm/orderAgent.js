@@ -48,6 +48,7 @@ class OrderAgent {
       ...turn,
       orderId: toolbox.submittedOrderId || null,
       total: toolbox.submittedTotal ?? null,
+      orderSummary: toolbox.submittedSummary || null,
     });
 
     const messages = [{ role: 'system', content: ORDER_AGENT_SYSTEM }];

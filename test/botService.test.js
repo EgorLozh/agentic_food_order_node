@@ -27,6 +27,69 @@ function makeService({ orchestrate, notifier = null } = {}) {
   return { service, sessions };
 }
 
+test('ход: ответ приходит структурированным (переносы, пункты, блоки)', async () => {
+  const { service } = makeService({
+    orchestrate: async () => ({
+      replyText: 'Проверьте заказ: • 1× Куриная Стандарт 320г — 340 ₽  Самовывоз: Raketa, в 14:00 Итого: 340 ₽  Всё верно?',
+      choices: ['да', 'нет'],
+    }),
+  });
+  const result = await service.handleText({ telegramUserId: 1, text: 'да' });
+  assert.equal(
+    result.replyText,
+    [
+      'Проверьте заказ:',
+      '• 1× Куриная Стандарт 320г — 340 ₽',
+      '',
+      'Самовывоз: Raketa, в 14:00',
+      '',
+      'Итого: 340 ₽',
+      '',
+      'Всё верно?',
+      '',
+      'Варианты:',
+      '• да',
+      '• нет',
+    ].join('\n')
+  );
+});
+
+test('ход: дежурная фраза «нет» не считается показанной кнопкой', async () => {
+  const { service } = makeService({
+    orchestrate: async () => ({
+      replyText:
+        'Проверьте заказ:\n• 1× Куриная Стандарт 320г — 340 ₽\n\nВсё верно?\n\n' +
+        'Если нужного варианта нет, напишите своими словами.',
+      choices: ['да', 'нет'],
+    }),
+  });
+  const result = await service.handleText({ telegramUserId: 1, text: 'да' });
+  assert.match(result.replyText, /Варианты:\n• да\n• нет$/);
+});
+
+test('уведомление админу: состав берётся из снимка submit_order, а не из очищенного черновика', () => {
+  const { service } = makeService();
+  const text = service.adminOrderText({
+    orderId: '284950',
+    telegramUserId: 42,
+    state: { items: [], pickupPointName: null },
+    total: 680,
+    summary: {
+      items: [{ name: 'Куриная Стандарт 320г', qty: 2, unitPrice: 340 }],
+      pickupPointName: 'Raketa на Молодежной 107б',
+      pickupPointAddress: 'Молодежная 107б',
+      pickupTime: '14:00',
+      paymentMethod: 'cash',
+      phone: '+79001234567',
+    },
+  });
+  assert.match(text, /• 2× Куриная Стандарт 320г — 340 ₽/);
+  assert.match(text, /Самовывоз: Raketa на Молодежной 107б \(Молодежная 107б\)/);
+  assert.match(text, /Оплата: наличными/);
+  assert.match(text, /Итого: 680 ₽/);
+  assert.doesNotMatch(text, /Самовывоз: —/);
+});
+
 test('ход: onProgress доходит до оркестратора (статусы черновика)', async () => {
   let seen = null;
   const { service } = makeService({

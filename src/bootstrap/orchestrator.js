@@ -37,6 +37,7 @@ class OrderOrchestrator {
         choices: turn.choices || [],
         orderId: turn.orderId || null,
         total: turn.total ?? null,
+        orderSummary: turn.orderSummary || null,
       };
     } catch (e) {
       console.warn('[orchestrator]', telegramUserId, e.message);

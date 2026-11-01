@@ -80,6 +80,10 @@ test('агент: полный ход — tools, сводка, submit и отв�
   assert.equal(submitted[0].cafeId, '68');
   assert.equal(submitted[0].items[0].qty, 2);
   assert.equal(submitted[0].pickupTime, '15:00');
+  // снимок заказа до сброса черновика — нужен уведомлению админу
+  assert.equal(turn.orderSummary.items.length, 1);
+  assert.equal(turn.orderSummary.items[0].name, 'Куриная Стандарт 320г');
+  assert.equal(turn.orderSummary.pickupTime, '15:00');
 });
 
 test('агент: сообщает о ходе статусами, не меняя результат', async () => {
