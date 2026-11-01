@@ -44,7 +44,7 @@ test('ход: статусы идут в черновик, «печатает…
   assert.deepEqual(
     ctx.events.filter((e) => e.kind === 'draft').map((e) => e.text),
     // статусы, затем сам ответ — иначе Telegram оставит в чате пузырь со статусом
-    [STATUS_LABELS.thinking, 'Ищу в меню', 'ответ']
+    [STATUS_LABELS.thinking, 'Смотрю меню', 'ответ']
   );
   assert.equal(ctx.events.filter((e) => e.kind === 'typing').length, 0);
   assert.ok(ctx.events.every((e) => e.chatId === 42));
@@ -90,7 +90,7 @@ test('ход: пустой ответ в черновик не попадает'
   );
   assert.deepEqual(
     ctx.events.filter((e) => e.kind === 'draft').map((e) => e.text),
-    [STATUS_LABELS.thinking, 'Ищу в меню']
+    [STATUS_LABELS.thinking, 'Смотрю меню']
   );
 });
 

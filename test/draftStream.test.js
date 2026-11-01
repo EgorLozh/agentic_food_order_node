@@ -54,7 +54,7 @@ test('черновик: инструменты агента переводятс
   await stream.status('нет_такого_инструмента');
   assert.deepEqual(
     telegram.calls.map((call) => call.text),
-    [STATUS_LABELS.thinking, 'Ищу в меню', 'Формирую заказ', STATUS_LABELS.thinking]
+    [STATUS_LABELS.thinking, 'Смотрю меню', 'Собираю сводку', STATUS_LABELS.thinking]
   );
   // один и тот же draft_id в рамках хода — иначе Telegram не анимирует обновления
   assert.equal(new Set(telegram.calls.map((call) => call.draft_id)).size, 1);
@@ -69,7 +69,7 @@ test('черновик: повтор того же статуса не отпр�
   await stream.status('get_menu');
   assert.deepEqual(
     telegram.calls.map((call) => call.text),
-    [STATUS_LABELS.thinking, 'Ищу в меню']
+    [STATUS_LABELS.thinking, 'Смотрю меню']
   );
   await stream.stop();
 });
@@ -86,9 +86,15 @@ test('черновик: обновления не чаще интервала, �
   await new Promise((resolve) => setTimeout(resolve, 320));
   assert.deepEqual(
     telegram.calls.map((call) => call.text),
-    [STATUS_LABELS.thinking, 'Ищу в меню']
+    [STATUS_LABELS.thinking, 'Смотрю меню']
   );
   await stream.stop();
+});
+
+test('черновик: подписи описывают действие бота, а не поиск', () => {
+  // «Привет» тоже грузит меню (чтобы показать разделы) — статус не должен звучать как поиск
+  assert.equal(STATUS_LABELS.get_menu, 'Смотрю меню');
+  assert.ok(!/ищу|ищем|поиск/i.test(STATUS_LABELS.get_menu));
 });
 
 test('черновик: подписи без многоточия — точки рисует сам клиент', () => {
