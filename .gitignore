@@ -8,6 +8,10 @@ npm-debug.log*
 *.local.env
 .bot-ready
 
+# Секреты доступа к серверу и VPN — только локально, в git не попадают
+serverpass.txt
+amnezia_device18.conf
+
 # IDE
 .vscode
 .idea
