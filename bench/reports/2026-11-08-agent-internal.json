@@ -1,0 +1,348 @@
+{
+  "meta": {
+    "startedAt": "2026-11-08T16:19:18.206Z",
+    "finishedAt": "2026-11-08T16:21:03.800Z",
+    "host": "cv5630505.novalocal",
+    "provider": "deepseek",
+    "model": "deepseek-flash",
+    "defaultCafeId": 68,
+    "repeats": 2,
+    "scenarios": [
+      "order_happy",
+      "menu_question"
+    ],
+    "db": "postgresql://***@127.0.0.1:5432/foodorder"
+  },
+  "stats": {
+    "allTurns": {
+      "n": 18,
+      "min": 2259,
+      "p50": 4798,
+      "mean": 5296,
+      "p90": 8221,
+      "p95": 8408,
+      "max": 8960,
+      "std": 1991
+    },
+    "firstTurn": {
+      "n": 4,
+      "min": 4711,
+      "p50": 4907,
+      "mean": 4966,
+      "p90": 5217,
+      "p95": 5278,
+      "max": 5340,
+      "std": 231
+    },
+    "laterTurns": {
+      "n": 14,
+      "min": 2259,
+      "p50": 4289,
+      "mean": 5390,
+      "p90": 8272,
+      "p95": 8538,
+      "max": 8960,
+      "std": 2246
+    },
+    "orderScenarioTurns": {
+      "n": 12,
+      "min": 2259,
+      "p50": 4065,
+      "mean": 4941,
+      "p90": 8092,
+      "p95": 8512,
+      "max": 8960,
+      "std": 2066
+    },
+    "modelPing": {
+      "n": 10,
+      "min": 632,
+      "p50": 1097,
+      "mean": 1026,
+      "p90": 1184,
+      "p95": 1195,
+      "max": 1206,
+      "std": 191
+    },
+    "fullOrderSum": {
+      "n": 2,
+      "min": 28085,
+      "p50": 29647,
+      "mean": 29647,
+      "p90": 30896,
+      "p95": 31052,
+      "max": 31208,
+      "std": 1562
+    },
+    "llmCallsPerTurn": {
+      "mean": 2.5555555555555554,
+      "median": 2.5,
+      "max": 4,
+      "distribution": {
+        "2": 9,
+        "3": 8,
+        "4": 1
+      }
+    },
+    "msPerLlmCall": {
+      "n": 18,
+      "min": 1130,
+      "p50": 2235,
+      "mean": 2067,
+      "p90": 2719,
+      "p95": 2734,
+      "max": 2770,
+      "std": 555
+    },
+    "perScenario": {
+      "order_happy": {
+        "n": 12,
+        "min": 2259,
+        "p50": 4065,
+        "mean": 4941,
+        "p90": 8092,
+        "p95": 8512,
+        "max": 8960,
+        "std": 2066
+      },
+      "menu_question": {
+        "n": 6,
+        "min": 4458,
+        "p50": 5183,
+        "mean": 6005,
+        "p90": 8247,
+        "p95": 8279,
+        "max": 8311,
+        "std": 1613
+      }
+    }
+  },
+  "totals": {
+    "turns": 18,
+    "errors": 0,
+    "ordersCreated": 2,
+    "orderIds": [
+      "8",
+      "9"
+    ],
+    "cleanedUsers": 2
+  },
+  "turns": [
+    {
+      "scenario": "order_happy",
+      "repeat": 1,
+      "turn": 1,
+      "text": "Здравствуйте! Хочу заказать 2 порции «Эскимо куриное на палочке»",
+      "ms": 5340,
+      "llmCalls": 2,
+      "replyLength": 366,
+      "choices": 8,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "order_happy",
+      "repeat": 1,
+      "turn": 2,
+      "text": "Точка самовывоза — демо",
+      "ms": 8960,
+      "llmCalls": 4,
+      "replyLength": 149,
+      "choices": 0,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "order_happy",
+      "repeat": 1,
+      "turn": 3,
+      "text": "Заберу в 15:00",
+      "ms": 4010,
+      "llmCalls": 2,
+      "replyLength": 136,
+      "choices": 2,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "order_happy",
+      "repeat": 1,
+      "turn": 4,
+      "text": "Оплата наличными",
+      "ms": 2259,
+      "llmCalls": 2,
+      "replyLength": 49,
+      "choices": 0,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "order_happy",
+      "repeat": 1,
+      "turn": 5,
+      "text": "Телефон 89001234567",
+      "ms": 3867,
+      "llmCalls": 3,
+      "replyLength": 175,
+      "choices": 2,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "order_happy",
+      "repeat": 1,
+      "turn": 6,
+      "text": "Да, всё верно, оформляйте",
+      "ms": 3649,
+      "llmCalls": 3,
+      "replyLength": 187,
+      "choices": 3,
+      "orderId": "8",
+      "error": null
+    },
+    {
+      "scenario": "menu_question",
+      "repeat": 1,
+      "turn": 1,
+      "text": "А что у вас есть из салатов?",
+      "ms": 4711,
+      "llmCalls": 2,
+      "replyLength": 146,
+      "choices": 2,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "menu_question",
+      "repeat": 1,
+      "turn": 2,
+      "text": "Сколько стоит «Оливье»?",
+      "ms": 4458,
+      "llmCalls": 2,
+      "replyLength": 154,
+      "choices": 2,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "menu_question",
+      "repeat": 1,
+      "turn": 3,
+      "text": "А что-нибудь без мяса найдётся?",
+      "ms": 8182,
+      "llmCalls": 3,
+      "replyLength": 305,
+      "choices": 8,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "order_happy",
+      "repeat": 2,
+      "turn": 1,
+      "text": "Здравствуйте! Хочу заказать 2 порции «Эскимо куриное на палочке»",
+      "ms": 4884,
+      "llmCalls": 2,
+      "replyLength": 350,
+      "choices": 8,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "order_happy",
+      "repeat": 2,
+      "turn": 2,
+      "text": "Точка самовывоза — демо",
+      "ms": 8145,
+      "llmCalls": 3,
+      "replyLength": 236,
+      "choices": 7,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "order_happy",
+      "repeat": 2,
+      "turn": 3,
+      "text": "Заберу в 15:00",
+      "ms": 7619,
+      "llmCalls": 3,
+      "replyLength": 203,
+      "choices": 2,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "order_happy",
+      "repeat": 2,
+      "turn": 4,
+      "text": "Оплата наличными",
+      "ms": 3298,
+      "llmCalls": 2,
+      "replyLength": 116,
+      "choices": 0,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "order_happy",
+      "repeat": 2,
+      "turn": 5,
+      "text": "Телефон 89001234567",
+      "ms": 4120,
+      "llmCalls": 3,
+      "replyLength": 179,
+      "choices": 2,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "order_happy",
+      "repeat": 2,
+      "turn": 6,
+      "text": "Да, всё верно, оформляйте",
+      "ms": 3142,
+      "llmCalls": 2,
+      "replyLength": 204,
+      "choices": 0,
+      "orderId": "9",
+      "error": null
+    },
+    {
+      "scenario": "menu_question",
+      "repeat": 2,
+      "turn": 1,
+      "text": "А что у вас есть из салатов?",
+      "ms": 4929,
+      "llmCalls": 2,
+      "replyLength": 171,
+      "choices": 3,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "menu_question",
+      "repeat": 2,
+      "turn": 2,
+      "text": "Сколько стоит «Оливье»?",
+      "ms": 5436,
+      "llmCalls": 3,
+      "replyLength": 252,
+      "choices": 4,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "menu_question",
+      "repeat": 2,
+      "turn": 3,
+      "text": "А что-нибудь без мяса найдётся?",
+      "ms": 8311,
+      "llmCalls": 3,
+      "replyLength": 382,
+      "choices": 9,
+      "orderId": null,
+      "error": null
+    }
+  ]
+}

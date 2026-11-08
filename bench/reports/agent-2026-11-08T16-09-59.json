@@ -1,0 +1,113 @@
+{
+  "meta": {
+    "startedAt": "2026-11-08T16:09:59.584Z",
+    "finishedAt": "2026-11-08T16:10:20.017Z",
+    "host": "Egor",
+    "provider": "deepseek",
+    "model": "deepseek-flash",
+    "defaultCafeId": 68,
+    "repeats": 1,
+    "scenarios": [
+      "menu_question"
+    ],
+    "db": "postgresql://***@localhost:5432/testing"
+  },
+  "stats": {
+    "allTurns": {
+      "n": 3,
+      "min": 4587,
+      "p50": 5970,
+      "mean": 6464,
+      "p90": 8261,
+      "p95": 8548,
+      "max": 8834,
+      "std": 1769
+    },
+    "firstTurn": {
+      "n": 1,
+      "min": 4587,
+      "p50": 4587,
+      "mean": 4587,
+      "p90": 4587,
+      "p95": 4587,
+      "max": 4587,
+      "std": 0
+    },
+    "laterTurns": {
+      "n": 2,
+      "min": 5970,
+      "p50": 7402,
+      "mean": 7402,
+      "p90": 8548,
+      "p95": 8691,
+      "max": 8834,
+      "std": 1432
+    },
+    "orderScenarioTurns": null,
+    "modelPing": {
+      "n": 1,
+      "min": 1038,
+      "p50": 1038,
+      "mean": 1038,
+      "p90": 1038,
+      "p95": 1038,
+      "max": 1038,
+      "std": 0
+    },
+    "fullOrderSum": null,
+    "perScenario": {
+      "menu_question": {
+        "n": 3,
+        "min": 4587,
+        "p50": 5970,
+        "mean": 6464,
+        "p90": 8261,
+        "p95": 8548,
+        "max": 8834,
+        "std": 1769
+      }
+    }
+  },
+  "totals": {
+    "turns": 3,
+    "errors": 0,
+    "ordersCreated": 0,
+    "orderIds": [],
+    "cleanedUsers": 0
+  },
+  "turns": [
+    {
+      "scenario": "menu_question",
+      "repeat": 1,
+      "turn": 1,
+      "text": "А что у вас есть из салатов?",
+      "ms": 4587,
+      "replyLength": 135,
+      "choices": 2,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "menu_question",
+      "repeat": 1,
+      "turn": 2,
+      "text": "Сколько стоит «Оливье»?",
+      "ms": 5970,
+      "replyLength": 181,
+      "choices": 2,
+      "orderId": null,
+      "error": null
+    },
+    {
+      "scenario": "menu_question",
+      "repeat": 1,
+      "turn": 3,
+      "text": "А что-нибудь без мяса найдётся?",
+      "ms": 8834,
+      "replyLength": 430,
+      "choices": 12,
+      "orderId": null,
+      "error": null
+    }
+  ]
+}

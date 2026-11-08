@@ -1,0 +1,464 @@
+{
+  "report": "reports/20261108_201546_node-prod-full.json",
+  "label": "node-prod-full",
+  "overall": {
+    "n": 38,
+    "min": 300,
+    "p50": 1790,
+    "mean": 3406,
+    "p90": 9295,
+    "p95": 12642,
+    "max": 14089,
+    "std": 3975
+  },
+  "by_kind": {
+    "/cancel": {
+      "n": 9,
+      "min": 300,
+      "p50": 347,
+      "mean": 358,
+      "p90": 412,
+      "p95": 416,
+      "max": 419,
+      "std": 42
+    },
+    "/start": {
+      "n": 10,
+      "min": 305,
+      "p50": 343,
+      "mean": 365,
+      "p90": 427,
+      "p95": 467,
+      "max": 508,
+      "std": 61
+    },
+    "текст клиента": {
+      "n": 19,
+      "min": 3072,
+      "p50": 4719,
+      "mean": 6450,
+      "p90": 12646,
+      "p95": 12851,
+      "max": 14089,
+      "std": 3615
+    }
+  },
+  "by_scenario": {
+    "ambiguous_item": {
+      "n": 3,
+      "min": 347,
+      "p50": 508,
+      "mean": 4523,
+      "p90": 10272,
+      "p95": 11493,
+      "max": 12713,
+      "std": 5792
+    },
+    "ambiguous_pickup": {
+      "n": 3,
+      "min": 418,
+      "p50": 419,
+      "mean": 3109,
+      "p90": 6875,
+      "p95": 7682,
+      "max": 8489,
+      "std": 3805
+    },
+    "cancel_flow": {
+      "n": 4,
+      "min": 314,
+      "p50": 351,
+      "mean": 2368,
+      "p90": 6031,
+      "p95": 7244,
+      "max": 8457,
+      "std": 3515
+    },
+    "edit_after_summary": {
+      "n": 5,
+      "min": 331,
+      "p50": 3127,
+      "mean": 4085,
+      "p90": 9163,
+      "p95": 10896,
+      "max": 12629,
+      "std": 4512
+    },
+    "happy_shaurma": {
+      "n": 4,
+      "min": 353,
+      "p50": 1747,
+      "mean": 3367,
+      "p90": 7661,
+      "p95": 8642,
+      "max": 9623,
+      "std": 3776
+    },
+    "replace_item": {
+      "n": 5,
+      "min": 400,
+      "p50": 3112,
+      "mean": 4920,
+      "p90": 11090,
+      "p95": 12590,
+      "max": 14089,
+      "std": 5117
+    },
+    "stepwise_slots": {
+      "n": 8,
+      "min": 300,
+      "p50": 3444,
+      "mean": 2929,
+      "p90": 4442,
+      "p95": 4581,
+      "max": 4719,
+      "std": 1594
+    },
+    "unknown_item": {
+      "n": 3,
+      "min": 307,
+      "p50": 325,
+      "mean": 1784,
+      "p90": 3842,
+      "p95": 4281,
+      "max": 4721,
+      "std": 2076
+    },
+    "vague_time": {
+      "n": 3,
+      "min": 305,
+      "p50": 310,
+      "mean": 3257,
+      "p90": 7386,
+      "p95": 8270,
+      "max": 9155,
+      "std": 4171
+    }
+  },
+  "quality": {
+    "scenarios_ok": 4,
+    "scenarios_total": 9,
+    "turns_ok": 31,
+    "turns_total": 38
+  },
+  "turns": [
+    {
+      "scenario": "ambiguous_item",
+      "index": 0,
+      "send": "/cancel",
+      "latency_ms": 347.07339998567477,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "ambiguous_item",
+      "index": 1,
+      "send": "/start",
+      "latency_ms": 507.93520000297576,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "ambiguous_item",
+      "index": 2,
+      "send": "Хочу шаурму",
+      "latency_ms": 12713.009999977658,
+      "ok": false,
+      "expect_failed": [
+        "regex:(размер|мини|стандарт|биг)"
+      ]
+    },
+    {
+      "scenario": "ambiguous_pickup",
+      "index": 0,
+      "send": "/cancel",
+      "latency_ms": 419.0404999826569,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "ambiguous_pickup",
+      "index": 1,
+      "send": "/start",
+      "latency_ms": 417.8226999938488,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "ambiguous_pickup",
+      "index": 2,
+      "send": "Куриная Стандарт на Ракете к 14:00",
+      "latency_ms": 8489.37830000068,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "cancel_flow",
+      "index": 0,
+      "send": "/start",
+      "latency_ms": 314.3205000087619,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "cancel_flow",
+      "index": 1,
+      "send": "Куриная Стандарт на Молодежной",
+      "latency_ms": 8456.93869999377,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "cancel_flow",
+      "index": 2,
+      "send": "/cancel",
+      "latency_ms": 331.336300005205,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "cancel_flow",
+      "index": 3,
+      "send": "/start",
+      "latency_ms": 370.41270002373494,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "edit_after_summary",
+      "index": 0,
+      "send": "/cancel",
+      "latency_ms": 375.348200002918,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "edit_after_summary",
+      "index": 1,
+      "send": "/start",
+      "latency_ms": 330.84160002181306,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "edit_after_summary",
+      "index": 2,
+      "send": "Куриная Стандарт к 14:00 на Молодежной 107б, наличными, телефон 89001234567",
+      "latency_ms": 12629.096400021808,
+      "ok": false,
+      "expect_failed": [
+        "regex:(подтверд|подтверж)"
+      ]
+    },
+    {
+      "scenario": "edit_after_summary",
+      "index": 3,
+      "send": "Перенеси на 16:00",
+      "latency_ms": 3963.4860000223853,
+      "ok": false,
+      "expect_failed": [
+        "regex:(подтверд|подтверж)"
+      ]
+    },
+    {
+      "scenario": "edit_after_summary",
+      "index": 4,
+      "send": "да",
+      "latency_ms": 3127.498399990145,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "happy_shaurma",
+      "index": 0,
+      "send": "/cancel",
+      "latency_ms": 410.38190000108443,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "happy_shaurma",
+      "index": 1,
+      "send": "/start",
+      "latency_ms": 352.9576000000816,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "happy_shaurma",
+      "index": 2,
+      "send": "Куриная Стандарт и Dobriy газ. вода 0.5 к 14:00 на Молодежной 107б, картой, телефон 890012",
+      "latency_ms": 9623.15340002533,
+      "ok": false,
+      "expect_failed": [
+        "regex:(подтверд|подтверж)"
+      ]
+    },
+    {
+      "scenario": "happy_shaurma",
+      "index": 3,
+      "send": "да",
+      "latency_ms": 3083.0946000060067,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "replace_item",
+      "index": 0,
+      "send": "/cancel",
+      "latency_ms": 399.7692000120878,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "replace_item",
+      "index": 1,
+      "send": "/start",
+      "latency_ms": 409.4502000079956,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "replace_item",
+      "index": 2,
+      "send": "Куриная Стандарт к 14:00 на Молодежной 107б, картой, телефон 89001234567",
+      "latency_ms": 14089.160100003937,
+      "ok": false,
+      "expect_failed": [
+        "regex:(подтверд|подтверж)"
+      ]
+    },
+    {
+      "scenario": "replace_item",
+      "index": 3,
+      "send": "Замени на Свиную Биг",
+      "latency_ms": 6591.957399999956,
+      "ok": false,
+      "expect_failed": [
+        "regex:(подтверд|подтверж)"
+      ]
+    },
+    {
+      "scenario": "replace_item",
+      "index": 4,
+      "send": "да",
+      "latency_ms": 3111.9751000078395,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "stepwise_slots",
+      "index": 0,
+      "send": "/cancel",
+      "latency_ms": 299.8834000027273,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "stepwise_slots",
+      "index": 1,
+      "send": "/start",
+      "latency_ms": 333.04860000498593,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "stepwise_slots",
+      "index": 2,
+      "send": "Куриная шаурма Стандарт, одну",
+      "latency_ms": 4719.1407999780495,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "stepwise_slots",
+      "index": 3,
+      "send": "Точка Raketa на Молодежной 107б",
+      "latency_ms": 3777.182499994524,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "stepwise_slots",
+      "index": 4,
+      "send": "К 15:30",
+      "latency_ms": 3072.101300000213,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "stepwise_slots",
+      "index": 5,
+      "send": "Оплата наличными",
+      "latency_ms": 3110.759600007441,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "stepwise_slots",
+      "index": 6,
+      "send": "Телефон +7 900 123-45-67",
+      "latency_ms": 4323.344400007045,
+      "ok": false,
+      "expect_failed": [
+        "regex:(подтверд|подтверж)"
+      ]
+    },
+    {
+      "scenario": "stepwise_slots",
+      "index": 7,
+      "send": "да",
+      "latency_ms": 3793.5583000071347,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "unknown_item",
+      "index": 0,
+      "send": "/cancel",
+      "latency_ms": 324.7715000179596,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "unknown_item",
+      "index": 1,
+      "send": "/start",
+      "latency_ms": 307.4884000234306,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "unknown_item",
+      "index": 2,
+      "send": "Хочу заказать ксенобургер из марса",
+      "latency_ms": 4720.8786999981385,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "vague_time",
+      "index": 0,
+      "send": "/cancel",
+      "latency_ms": 310.34749999525957,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "vague_time",
+      "index": 1,
+      "send": "/start",
+      "latency_ms": 304.85939999925904,
+      "ok": true,
+      "expect_failed": []
+    },
+    {
+      "scenario": "vague_time",
+      "index": 2,
+      "send": "Куриная Стандарт на Молодежной 107б вечером, картой, телефон 89001234567",
+      "latency_ms": 9154.838999995263,
+      "ok": true,
+      "expect_failed": []
+    }
+  ]
+}
