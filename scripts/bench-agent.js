@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Замер времени ответа бота и статистика по ходам агента.
+ * Замер времени ответа бота: статистика по ответам агента.
  *
  * Гоняет те же BotService + OrderOrchestrator + OrderAgent, что и telegraf (без Telegram),
  * поэтому мерит ровно то, что клиент ждёт между своим сообщением и ответом:
@@ -38,7 +38,7 @@ const PICKUP_TIME = process.env.BENCH_TIME || '15:00';
 const PHONE = '89001234567';
 
 const SCENARIOS = {
-  // Полный заказ: столько ходов клиент реально делает в диалоге
+  // Полный заказ: столько реплик клиент реально отправляет в диалоге
   order_happy: [
     `Здравствуйте! Хочу заказать 2 порции «${DISH.replace(/"/g, '')}»`,
     `Точка самовывоза — ${CAFE_QUERY}`,
@@ -47,7 +47,7 @@ const SCENARIOS = {
     `Телефон ${PHONE}`,
     'Да, всё верно, оформляйте',
   ],
-  // Только вопросы по меню — оценка дешёвых ходов без записи заказа
+  // Только вопросы по меню — оценка дешёвых ответов без записи заказа
   menu_question: [
     'А что у вас есть из салатов?',
     'Сколько стоит «Оливье»?',
@@ -134,7 +134,7 @@ async function cleanup(pool, orderIds, telegramIds) {
     notifier: null, // уведомление админа — сетевой вызов Telegram, в замер ответа не входит
   });
 
-  // Считаем LLM-раунды на ход: это главный драйвер задержки (каждый раунд = один запрос к модели)
+  // Считаем обращения к модели на один ответ: это главный драйвер задержки
   let llmCalls = 0;
   const rawComplete = llm.completeWithTools.bind(llm);
   llm.completeWithTools = async (args) => {
@@ -182,7 +182,7 @@ async function cleanup(pool, orderIds, telegramIds) {
         });
         if (result.orderId) orderIds.push(result.orderId);
         console.log(
-          `  ход ${i + 1}: ${fmt(Math.round(ms))} (${llmCalls - callsBefore} LLM)  «${text}» → ${(result.replyText || '')
+          `  ответ ${i + 1}: ${fmt(Math.round(ms))} (${llmCalls - callsBefore} LLM)  «${text}» → ${(result.replyText || '')
             .slice(0, 70)
             .replace(/\n/g, ' ')}`
         );
@@ -212,7 +212,7 @@ async function cleanup(pool, orderIds, telegramIds) {
     perScenario[name] = describe(turns.filter((t) => t.scenario === name).map((t) => t.ms));
   }
 
-  // Распределение числа LLM-раундов на ход: показывает, где задержка растёт
+  // Распределение числа обращений к модели на один ответ: показывает, где растёт время ответа
   const callsSorted = turns.map((t) => t.llmCalls).sort((a, b) => a - b);
   const callsDist = {};
   for (const c of callsSorted) callsDist[c] = (callsDist[c] || 0) + 1;
@@ -288,28 +288,28 @@ async function cleanup(pool, orderIds, telegramIds) {
   const md = [
     `# Время ответа агента (${report.meta.model}, ${report.meta.host})`,
     '',
-    `Прогон: ${report.meta.startedAt} → ${report.meta.finishedAt}, повторов ${REPEATS}, ходов ${turns.length}.`,
+    `Прогон: ${report.meta.startedAt} → ${report.meta.finishedAt}, повторов ${REPEATS}, замеров ${turns.length}.`,
     '',
-    '| Срез | ходов | min | p50 | mean | p90 | p95 | max | σ |',
+    '| Срез | ответов | min | p50 | mean | p90 | p95 | max | σ |',
     '|---|---|---|---|---|---|---|---|---|',
-    row('Все ходы', report.stats.allTurns),
-    row('Первый ход (холодный)', report.stats.firstTurn),
-    row('Последующие ходы', report.stats.laterTurns),
-    row('Ходы сценария заказа', report.stats.orderScenarioTurns),
+    row('Все ответы', report.stats.allTurns),
+    row('Первый ответ (холодный старт)', report.stats.firstTurn),
+    row('Последующие ответы', report.stats.laterTurns),
+    row('Ответы сценария заказа', report.stats.orderScenarioTurns),
     row('Модель без инструментов', report.stats.modelPing),
     '',
-    `LLM-раундов на ход: медиана ${report.stats.llmCallsPerTurn.median}, в среднем ${report.stats
+    `Обращений к модели на ответ: медиана ${report.stats.llmCallsPerTurn.median}, в среднем ${report.stats
       .llmCallsPerTurn.mean?.toFixed(2)}, максимум ${report.stats.llmCallsPerTurn.max}` +
       ` (распределение: ${Object.entries(report.stats.llmCallsPerTurn.distribution)
         .map(([k, v]) => `${k} раунд(а) × ${v}`)
         .join(', ')}).`,
-    `Время на один LLM-раунд: p50 ${fmt(report.stats.msPerLlmCall?.p50)}, p95 ${fmt(report.stats.msPerLlmCall?.p95)}.`,
+    `Время одного обращения к модели: p50 ${fmt(report.stats.msPerLlmCall?.p50)}, p95 ${fmt(report.stats.msPerLlmCall?.p95)}.`,
     '',
-    `Полный заказ (сумма всех ходов): ${fmt(report.stats.fullOrderSum?.p50)} медиана, ${fmt(
+    `Полный заказ (сумма времени всех ответов): ${fmt(report.stats.fullOrderSum?.p50)} медиана, ${fmt(
       report.stats.fullOrderSum?.max
     )} максимум.`,
     '',
-    '| Сценарий | ходов | p50 | p95 | max |',
+    '| Сценарий | ответов | p50 | p95 | max |',
     '|---|---|---|---|---|',
     ...Object.entries(perScenario).map(
       ([name, s]) => `| ${name} | ${s ? s.n : 0} | ${fmt(s?.p50)} | ${fmt(s?.p95)} | ${fmt(s?.max)} |`
